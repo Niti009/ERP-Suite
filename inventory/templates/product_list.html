@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex justify-between items-center mb-8">
+
+    <div>
+
+        <h1 class="text-4xl font-bold text-gray-800">
+            📦 Products
+        </h1>
+
+        <p class="text-gray-500 mt-2">
+            Manage your inventory products.
+        </p>
+
+    </div>
+
+    <a href="{% url 'add_product' %}"
+       class="bg-[#88BDF2] hover:bg-blue-500 text-white px-6 py-3 rounded-xl shadow-lg transition">
+
+        + Add Product
+
+    </a>
+
+</div>
+
+<div class="bg-white rounded-3xl shadow-lg overflow-hidden">
+
+    <table class="w-full">
+
+        <thead class="bg-gradient-to-r from-[#88BDF2] to-[#C1BFFF] text-white">
+
+            <tr>
+
+                <th class="p-5 text-left">Product</th>
+
+                <th class="p-5 text-left">Price</th>
+
+                <th class="p-5 text-left">Stock</th>
+
+                <th class="p-5 text-left">Status</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+        {% for product in products %}
+
+            <tr class="border-b hover:bg-gray-50 transition">
+
+                <td class="p-5 font-semibold">
+
+                    {{ product.name }}
+
+                </td>
+
+                <td class="p-5">
+
+                    ₹ {{ product.price }}
+
+                </td>
+
+                <td class="p-5">
+
+                    {{ product.quantity }}
+
+                </td>
+
+                <td class="p-5">
+
+                    {% if product.quantity < 10 %}
+
+                        <span class="bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm">
+
+                            Low Stock
+
+                        </span>
+
+                    {% else %}
+
+                        <span class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">
+
+                            Available
+
+                        </span>
+
+                    {% endif %}
+
+                </td>
+
+            </tr>
+
+        {% empty %}
+
+            <tr>
+
+                <td colspan="4" class="text-center p-10 text-gray-400">
+
+                    No Products Found
+
+                </td>
+
+            </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

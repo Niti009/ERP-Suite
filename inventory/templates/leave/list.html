@@ -1,0 +1,66 @@
+<!-- inventory/templates/leave/list.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leave Applications</title>
+    <style>
+        table {
+            width: 70%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn.pending {
+            background-color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align:center;">Leave Applications</h2>
+
+    <table>
+        <tr>
+            <th>Employee</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+        {% for leave in leaves %}
+        <tr>
+            <td>{{ leave.employee.username }}</td>
+            <td>{{ leave.reason }}</td>
+            <td>{{ leave.status }}</td>
+            <td>
+                {% if user.is_staff and leave.status == "Pending" %}
+                    <a href="{% url 'leave_approve' leave.id %}" class="btn">Approve</a>
+                {% elif leave.status == "Pending" %}
+                    <span class="btn pending">Pending</span>
+                {% else %}
+                    <span class="btn">{{ leave.status }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No leave applications found.</td></tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align:center; margin-top: 20px;">
+        <a href="{% url 'logout' %}" class="btn">Logout</a>
+    </div>
+</body>
+</html>

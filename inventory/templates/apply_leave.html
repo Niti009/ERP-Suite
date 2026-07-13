@@ -1,0 +1,159 @@
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth.forms import UserCreationForm
+from django.http import HttpResponse
+from django.utils import timezone
+from django.contrib.auth.models import User
+
+from .models import Employee, Attendance, LeaveApplication
+from .forms import LeaveApplicationForm
+
+
+# ---------- HELPER ----------
+def get_employee(user):
+    if isinstance(user, User):
+        return Employee.objects.filter(user=user).first()
+    try:
+        user_obj = User.objects.get(username=user)
+        return Employee.objects.filter(user=user_obj).first()
+    except:
+        return None
+
+
+# ---------- AUTH ----------
+def login_view(request):
+    if request.method == 'POST':
+        user = authenticate(
+            username=request.POST.get('username'),
+            password=request.POST.get('password')
+        )
+        if user:
+            login(request, user)
+            return redirect('dashboard')
+        messages.error(request, 'Invalid credentials')
+    return HttpResponse("Login page")
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
+
+
+def signup_view(request):
+    form = UserCreationForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('login')
+    return HttpResponse("Signup page")
+
+
+# ---------- DASHBOARD ----------
+@login_required
+def dashboard(request):
+    employee = get_employee(request.user)
+
+    if not employee:
+        return render(request, 'dashboard.html', {
+            'attendance': None,
+            'error': "Employee not found"
+        })
+
+    today = timezone.now().date()
+
+    attendance = Attendance.objects.filter(
+        employee=employee,
+        date=today
+    ).first()
+
+    if request.method == "POST":
+        if not attendance:
+            Attendance.objects.create(
+                employee=employee,
+                date=today,
+                status="Present",
+                check_in=timezone.now()
+            )
+        elif not attendance.check_out:
+            attendance.check_out = timezone.now()
+            attendance.save()
+
+        return redirect('dashboard')
+
+    return render(request, 'dashboard.html', {
+        'attendance': attendance
+    })
+
+
+# ---------- APPLY LEAVE (SMART) ----------
+@login_required
+def apply_leave(request):
+    employee = get_employee(request.user)
+
+    if not employee:
+        return render(request, 'leave_application.html', {
+            'form': LeaveApplicationForm(),
+            'error': "Employee not found"
+        })
+
+    form = LeaveApplicationForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        leave = form.save(commit=False)
+        leave.employee = employee
+
+        # ---------- SMART LOGIC ----------
+        reason = leave.reason.lower()
+
+        if 'fever' in reason or 'cold' in reason or 'sick' in reason:
+            leave.leave_type = 'Sick'
+        elif 'emergency' in reason or 'urgent' in reason:
+            leave.leave_type = 'Earned'
+        else:
+            leave.leave_type = 'Casual'
+
+        # ---------- AUTO APPROVAL ----------
+        days = (leave.end_date - leave.start_date).days + 1
+
+        if leave.leave_type == 'Casual' and days == 1:
+            leave.status = 'Approved'
+            messages.success(request, "1-day casual leave auto-approved")
+        else:
+            leave.status = 'Pending'
+            messages.info(request, f"Leave type detected: {leave.leave_type}")
+
+        leave.save()
+        return redirect('view_leaves')
+
+    return render(request, 'leave_application.html', {
+        'form': form
+    })
+
+
+# ---------- VIEW LEAVES ----------
+@login_required
+def view_leaves(request):
+    employee = get_employee(request.user)
+
+    leaves = LeaveApplication.objects.filter(
+        employee=employee
+    ).order_by('-start_date')
+
+    return render(request, 'view_leaves.html', {
+        'leaves': leaves
+    })
+
+
+# ---------- ATTENDANCE HISTORY ----------
+@login_required
+def attendance_history(request):
+    employee = get_employee(request.user)
+
+    records = Attendance.objects.filter(
+        employee=employee
+    ).order_by('-date')
+
+    return render(request, 'attendance_history.html', {
+        'records': records
+    })

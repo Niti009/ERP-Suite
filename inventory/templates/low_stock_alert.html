@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 900px; margin: auto; padding: 30px;">
+  <h2 style="text-align: center; color: #d63031;">Low Stock Products</h2>
+
+  {% if products %}
+    <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+      <thead style="background: #ffeaa7;">
+        <tr>
+          <th style="padding: 10px;">Product Name</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+        <tr style="border-bottom: 1px solid #ccc;">
+          <td style="padding: 10px;">{{ product.name }}</td>
+          <td>{{ product.quantity }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="text-align: center; color: #636e72;">All products are in sufficient stock.</p>
+  {% endif %}
+</div>
+{% endblock %}

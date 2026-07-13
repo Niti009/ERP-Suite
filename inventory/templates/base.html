@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ERP Suite</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+<style>
+
+html{
+scroll-behavior:smooth;
+}
+
+body{
+font-family:Inter,Arial,sans-serif;
+transition:.3s;
+background:#f1f5f9;
+}
+
+.dark{
+background:#0f172a!important;
+color:#f8fafc!important;
+}
+
+.dark aside{
+background:#020617!important;
+}
+
+.dark header{
+background:#1e293b!important;
+}
+
+.dark main{
+background:#0f172a!important;
+}
+
+.dark .bg-white,
+.dark .rounded-2xl,
+.dark .rounded-3xl,
+.dark .rounded-xl,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-sm,
+.dark .bg-slate-800,
+.dark .bg-slate-900,
+.dark .bg-slate-700,
+.dark .bg-slate-600{
+background:#1e293b!important;
+color:#f8fafc!important;
+}
+
+.dark .bg-slate-100,
+.dark .bg-amber-50,
+.dark .bg-emerald-50,
+.dark .bg-rose-50,
+.dark .bg-slate-200,
+.dark .bg-slate-300,
+.dark .bg-slate-400{
+background:#334155!important;
+color:#f8fafc!important;
+}
+
+.dark .bg-green-100{
+background:#14532d!important;
+color:#dcfce7!important;
+}
+
+.dark .bg-red-100{
+background:#7f1d1d!important;
+color:#fecaca!important;
+}
+
+.dark .bg-yellow-100{
+background:#713f12!important;
+color:#fde68a!important;
+}
+
+.dark .bg-blue-100{
+background:#1e3a8a!important;
+color:#dbeafe!important;
+}
+
+.dark .text-black,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark .text-blue-100,
+.dark .text-green-700,
+.dark .text-red-700,
+.dark .text-yellow-600,
+.dark .text-blue-600,
+.dark .text-emerald-600,
+.dark .text-rose-600,
+.dark .text-amber-700{
+color:#f8fafc!important;
+}
+
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark p,
+.dark span,
+.dark td,
+.dark th,
+.dark label,
+.dark small,
+.dark div,
+.dark a,
+.dark button{
+color:#f8fafc!important;
+}
+
+.dark input,
+.dark textarea,
+.dark select,
+.dark .border-slate-200,
+.dark .border-slate-100{
+border-color:#475569!important;
+background:#334155!important;
+color:white!important;
+}
+
+.dark #notificationPanel{
+background:#1e293b!important;
+color:#f8fafc!important;
+}
+
+.dark table{
+color:white;
+}
+
+.dark thead{
+background:#0f172a!important;
+}
+
+.dark tr:hover{
+background:#334155!important;
+}
+
+.card{
+transition:.25s;
+}
+
+.card:hover{
+transform:translateY(-5px);
+box-shadow:0 20px 35px rgba(0,0,0,.15);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="flex min-h-screen">
+
+<aside class="w-72 bg-slate-900 text-white flex flex-col">
+
+<div class="p-8 border-b border-slate-700">
+
+<h1 class="text-3xl font-bold">
+
+ERP Suite
+
+</h1>
+
+<p class="text-slate-400 mt-2">
+
+Enterprise Resource Planning
+
+</p>
+
+</div>
+
+<nav class="flex-1 p-6">
+
+<p class="uppercase text-xs tracking-widest text-slate-500 mb-5">
+
+MAIN MENU
+
+</p>
+
+<div class="space-y-2">
+    <a href="{% url 'dashboard' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-chart-line w-5"></i>
+
+Dashboard
+
+</a>
+
+<a href="{% url 'product_list' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-boxes-stacked w-5"></i>
+
+Products
+
+</a>
+
+<a href="{% url 'customer_list' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-users w-5"></i>
+
+Customers
+
+</a>
+
+<a href="{% url 'apply_leave' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-calendar-days w-5"></i>
+
+Apply Leave
+
+</a>
+
+<a href="{% url 'view_leaves' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-file-signature w-5"></i>
+
+Leave Records
+
+</a>
+
+<a href="{% url 'attendance_history' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-clock w-5"></i>
+
+Attendance
+
+</a>
+
+<a href="{% url 'upload_file' %}"
+class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
+
+<i class="fa-solid fa-folder-open w-5"></i>
+
+Documents
+
+</a>
+
+</div>
+
+</nav>
+
+<div class="p-6 border-t border-slate-700">
+
+<div class="flex items-center gap-4 mb-6">
+
+<div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold shadow-lg">
+
+{{ request.user.username|first|upper }}
+
+</div>
+
+<div>
+
+<p class="font-semibold text-lg">
+
+{{ request.user.username }}
+
+</p>
+
+<p class="text-sm text-slate-400">
+
+{% if request.user.is_superuser %}
+
+Administrator
+
+{% else %}
+
+Employee
+
+{% endif %}
+
+</p>
+
+</div>
+
+</div>
+
+<a href="{% url 'logout' %}"
+
+class="block bg-red-600 hover:bg-red-700 text-center py-3 rounded-xl font-semibold transition">
+
+<i class="fa-solid fa-right-from-bracket mr-2 text-[1.02rem]"></i>
+
+Logout
+
+</a>
+
+</div>
+
+</aside>
+
+<div class="flex-1">
+    <header class="bg-white shadow-sm border-b border-gray-200 px-10 py-6">
+
+<div class="flex justify-between items-center">
+
+<div>
+
+<h2 class="text-3xl font-bold text-slate-800">
+
+ERP Dashboard
+
+</h2>
+
+<p class="text-gray-500 mt-1">
+
+Enterprise Resource Planning System
+
+</p>
+
+</div>
+
+<div class="flex items-center gap-4">
+
+<div class="hidden md:flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full">
+
+<i class="fa-solid fa-circle-check"></i>
+
+<span class="font-medium">
+
+System Online
+
+</span>
+
+</div>
+
+<button
+id="themeToggle"
+class="w-11 h-11 rounded-full bg-slate-200 hover:bg-slate-300 transition shadow">
+
+<i class="fa-solid fa-moon text-[1.02rem]"></i>
+
+</button>
+
+<div class="relative">
+
+<button
+id="notificationToggle"
+class="relative w-11 h-11 rounded-full bg-slate-200 hover:bg-slate-300 transition shadow">
+
+<i class="fa-solid fa-bell text-[1.02rem]"></i>
+
+{% if pending_leave_count %}
+
+<span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+
+{{ pending_leave_count }}
+
+</span>
+
+{% endif %}
+
+</button>
+
+<div id="notificationPanel" class="hidden absolute right-0 mt-3 w-80 rounded-2xl border border-slate-200 bg-white shadow-2xl z-20 overflow-hidden">
+
+<div class="bg-slate-800 px-4 py-3 text-white">
+
+<p class="font-semibold">Pending Leave Requests</p>
+
+</div>
+
+<div class="max-h-64 overflow-y-auto">
+
+{% if pending_leave_requests %}
+
+{% for leave in pending_leave_requests %}
+
+<div class="px-4 py-3 border-b border-slate-100">
+
+<p class="font-semibold text-slate-800">{{ leave.employee.username }}</p>
+
+<p class="text-sm text-slate-600">{{ leave.leave_type }} • {{ leave.start_date }} to {{ leave.end_date }}</p>
+
+</div>
+
+{% endfor %}
+
+{% else %}
+
+<div class="px-4 py-5 text-sm text-slate-600">No pending leave requests.</div>
+
+{% endif %}
+
+</div>
+
+</div>
+
+</div>
+
+<div class="hidden md:flex items-center gap-3">
+
+<a href="{% url 'employee_profile' %}" class="flex items-center gap-3 hover:opacity-80 transition">
+
+<div class="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+
+{{ request.user.username|first|upper }}
+
+</div>
+
+<div>
+
+<p class="font-semibold text-slate-800">
+
+{{ request.user.username }}
+
+</p>
+
+<p class="text-xs text-gray-500">
+
+{% if request.user.is_superuser %}
+
+Administrator
+
+{% else %}
+
+Employee
+
+{% endif %}
+
+</p>
+
+</div>
+
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+</header>
+
+<main class="p-8 bg-slate-100 min-h-screen">
+
+{% if messages %}
+
+{% for message in messages %}
+
+<div class="mb-6 rounded-xl border border-green-300 bg-green-100 text-green-700 p-4 shadow">
+
+{{ message }}
+
+</div>
+
+{% endfor %}
+
+{% endif %}
+
+{% block content %}
+
+{% endblock %}
+
+</main>
+<footer class="bg-white border-t border-gray-200 py-5 px-10">
+
+<div class="flex justify-between items-center">
+
+<p class="text-gray-500 text-sm">
+
+© 2026 ERP Suite • Enterprise Resource Planning System
+
+</p>
+
+<p class="text-gray-500 text-sm">
+
+Developed with Django & Tailwind CSS
+
+</p>
+
+</div>
+
+</footer>
+
+</div>
+
+</div>
+
+<script>
+
+const body=document.body;
+const btn=document.getElementById("themeToggle");
+
+function enableDark(){
+
+body.classList.add("dark");
+
+btn.innerHTML='<i class="fa-solid fa-sun"></i>';
+
+}
+
+function disableDark(){
+
+body.classList.remove("dark");
+
+btn.innerHTML='<i class="fa-solid fa-moon"></i>';
+
+}
+
+if(localStorage.getItem("theme")==="dark"){
+
+enableDark();
+
+}
+
+btn.addEventListener("click",()=>{
+
+if(body.classList.contains("dark")){
+
+disableDark();
+
+localStorage.setItem("theme","light");
+
+}
+
+else{
+
+enableDark();
+
+localStorage.setItem("theme","dark");
+
+}
+
+});
+
+const notificationToggle=document.getElementById("notificationToggle");
+const notificationPanel=document.getElementById("notificationPanel");
+
+if(notificationToggle && notificationPanel){
+
+notificationToggle.addEventListener("click",(event)=>{
+
+event.preventDefault();
+event.stopPropagation();
+notificationPanel.classList.toggle("hidden");
+});
+
+document.addEventListener("click",(event)=>{
+if(!notificationToggle.contains(event.target) && !notificationPanel.contains(event.target)){
+notificationPanel.classList.add("hidden");
+}
+});
+
+}
+
+</script>
+
+</body>
+
+</html>

@@ -1,0 +1,85 @@
+<!-- templates/customer_form.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Add / Edit Customer - ERP System</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f7fafc;
+      margin: 0; padding: 2rem;
+      color: #333;
+    }
+    .form-container {
+      max-width: 480px;
+      background: #fff;
+      margin: 0 auto;
+      padding: 2rem 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(136, 189, 242, 0.25);
+    }
+    h2 {
+      color: #5677fc;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: #444;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"] {
+      padding: 0.5rem;
+      border: 1.5px solid #c1bfff;
+      border-radius: 6px;
+      margin-bottom: 1.2rem;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="tel"]:focus {
+      border-color: #88bdf2;
+      outline: none;
+    }
+    button {
+      background-color: #5677fc;
+      color: white;
+      border: none;
+      padding: 0.7rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #415ecd;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>{% if customer %}Edit{% else %}Add{% endif %} Customer</h2>
+    <form method="POST" action="">
+      {% csrf_token %}
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" value="{{ customer.name|default_if_none:'' }}" required />
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="{{ customer.email|default_if_none:'' }}" required />
+
+      <label for="phone">Phone</label>
+      <input type="tel" id="phone" name="phone" value="{{ customer.phone|default_if_none:'' }}" />
+
+      <button type="submit">{% if customer %}Update{% else %}Add{% endif %} Customer</button>
+    </form>
+  </div>
+</body>
+</html>

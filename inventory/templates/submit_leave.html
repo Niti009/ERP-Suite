@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">📋 Leave Applications</h2>
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Employee</th>
+                <th>Leave Type</th>
+                <th>Dates</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>AI Suggestion</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for leave in leaves %}
+            <tr>
+                <td>{{ leave.employee.username }}</td>
+                <td>
+                    {{ leave.leave_type }}
+                    {% if 'pregnancy' in leave.reason|lower %}
+                        <span class="badge bg-info">🤰 Maternity</span>
+                    {% endif %}
+                </td>
+                <td>{{ leave.start_date }} → {{ leave.end_date }}</td>
+                <td>{{ leave.reason }}</td>
+                <td>
+                    {% if leave.status == 'Approved' %}
+                        <span class="badge bg-success">Approved</span>
+                    {% elif leave.status == 'Rejected' %}
+                        <span class="badge bg-danger">Rejected</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Pending</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if leave.leave_type == "Casual" and leave.start_date == leave.end_date %}
+                        <span class="badge bg-success">AI: Auto-Approve Suggested</span>
+                    {% elif 'pregnancy' in leave.reason|lower %}
+                        <span class="badge bg-warning">AI: Long Leave - Consider Carefully</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.is_staff or user.is_superuser %}
+                        {% if leave.status == 'Pending' %}
+                            <a href="{% url 'approve_leave' leave.id %}" class="btn btn-success btn-sm">Approve</a>
+                            <a href="{% url 'reject_leave' leave.id %}" class="btn btn-danger btn-sm">Reject</a>
+                        {% else %}
+                            <span class="text-muted">No Actions</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">Employee</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

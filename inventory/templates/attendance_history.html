@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex justify-between items-center mb-8">
+
+    <div>
+
+        {% if request.user.is_superuser %}
+
+        <h1 class="text-4xl font-bold text-gray-800">
+            Attendance Management
+        </h1>
+
+        <p class="text-gray-500 mt-2">
+            View attendance records of all employees.
+        </p>
+
+        {% else %}
+
+        <h1 class="text-4xl font-bold text-gray-800">
+            My Attendance
+        </h1>
+
+        <p class="text-gray-500 mt-2">
+            View your attendance records.
+        </p>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+<div class="bg-white rounded-2xl shadow-lg p-6">
+
+<h3 class="text-gray-500">
+
+Attendance %
+
+</h3>
+
+<h1 class="text-4xl font-bold text-green-600 mt-3">
+
+{{ attendance_percentage }}%
+
+</h1>
+
+</div>
+
+<div class="bg-white rounded-2xl shadow-lg p-6">
+
+<h3 class="text-gray-500">
+
+Total Records
+
+</h3>
+
+<h1 class="text-4xl font-bold text-blue-600 mt-3">
+
+{{ records|length }}
+
+</h1>
+
+</div>
+
+<div class="bg-white rounded-2xl shadow-lg p-6">
+
+<h3 class="text-gray-500">
+
+System Status
+
+</h3>
+
+<h1 class="text-2xl font-bold text-slate-700 mt-4">
+
+Active
+
+</h1>
+
+</div>
+
+</div>
+
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+
+<table class="w-full">
+
+<thead class="bg-slate-800 text-white">
+
+<tr>
+
+{% if request.user.is_superuser %}
+<th class="p-5 text-left">Employee</th>
+{% endif %}
+
+<th class="p-5 text-left">Date</th>
+
+<th class="p-5 text-left">Check In</th>
+
+<th class="p-5 text-left">Check Out</th>
+
+<th class="p-5 text-left">Status</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for record in records %}
+
+<tr class="border-b hover:bg-slate-50">
+
+{% if request.user.is_superuser %}
+<td class="p-5 font-semibold">
+{{ record.employee.username }}
+</td>
+{% endif %}
+
+<td class="p-5">
+
+{{ record.date }}
+
+</td>
+
+<td class="p-5">
+
+{{ record.check_in|default:"--" }}
+
+</td>
+
+<td class="p-5">
+
+{{ record.check_out|default:"--" }}
+
+</td>
+
+<td class="p-5">
+
+{% if record.status == "Present" %}
+
+<span class="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm">
+
+Present
+
+</span>
+
+{% else %}
+
+<span class="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm">
+
+Absent
+
+</span>
+
+{% endif %}
+
+</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+
+<td colspan="{% if request.user.is_superuser %}5{% else %}4{% endif %}" class="text-center p-10 text-gray-500">
+
+No attendance records found.
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+{% endblock %}

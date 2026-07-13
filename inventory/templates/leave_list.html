@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 800px; margin: 40px auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,0.1);">
+  <h2 style="text-align: center; color: #444;">Your Leave Applications</h2>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+    <thead>
+      <tr style="background-color: #f1f1f1;">
+        <th style="padding: 10px;">Type</th>
+        <th style="padding: 10px;">Start</th>
+        <th style="padding: 10px;">End</th>
+        <th style="padding: 10px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for leave in leaves %}
+      <tr>
+        <td style="padding: 10px; text-align: center;">{{ leave.leave_type }}</td>
+        <td style="padding: 10px; text-align: center;">{{ leave.start_date }}</td>
+        <td style="padding: 10px; text-align: center;">{{ leave.end_date }}</td>
+        <td style="padding: 10px; text-align: center;">{{ leave.status }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" style="padding: 10px; text-align: center;">No leave applications found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

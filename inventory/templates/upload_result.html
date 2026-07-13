@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Extracted Data from {{ file.file.name }}</h2>
+  <pre style="white-space: pre-wrap;">{{ data }}</pre>
+  <a href="{% url 'upload_file' %}" class="btn btn-secondary mt-3">Upload Another File</a>
+</div>
+{% endblock %}

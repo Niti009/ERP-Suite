@@ -1,0 +1,81 @@
+{% extends "inventory/base.html" %}
+{% block content %}
+  <div class="container mt-4">
+    <h2>Audit Logs</h2>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>User</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.timestamp }}</td>
+          <td>{{ log.user }}</td>
+          <td>{{ log.action }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+<h2>Audit Logs</h2>
+<table>
+  <tr>
+    <th>User</th>
+    <th>Action</th>
+    <th>Time</th>
+  </tr>
+  {% for log in logs %}
+  <tr>
+    <td>{{ log.user }}</td>
+    <td>{{ log.action }}</td>
+    <td>{{ log.timestamp }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% extends "inventory/base.html" %}
+
+{% block content %}
+  <h2>Audit Logs</h2>
+  <table border="1">
+    <tr>
+      <th>User</th>
+      <th>Action</th>
+      <th>Timestamp</th>
+    </tr>
+    {% for log in logs %}
+    <tr>
+      <td>{{ log.user }}</td>
+      <td>{{ log.action }}</td>
+      <td>{{ log.timestamp }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% endblock %}
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Audit Logs</h2>
+<table>
+    <tr>
+        <th>User</th>
+        <th>Action</th>
+        <th>Model</th>
+        <th>Object ID</th>
+        <th>Timestamp</th>
+    </tr>
+    {% for log in logs %}
+    <tr>
+        <td>{{ log.user }}</td>
+        <td>{{ log.action }}</td>
+        <td>{{ log.model_name }}</td>
+        <td>{{ log.object_id }}</td>
+        <td>{{ log.timestamp }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

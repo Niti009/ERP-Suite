@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="space-y-8">
+
+    <!-- Hero Section -->
+
+    <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-700 rounded-3xl shadow-xl p-10 text-white">
+
+        <div class="flex flex-col lg:flex-row items-center justify-between">
+
+            <div>
+
+                <h1 class="text-4xl font-bold">
+
+                    ERP Suite Dashboard
+
+                </h1>
+
+                <p class="mt-3 text-lg">
+
+                    Welcome back,
+
+                    <span class="font-semibold">
+
+                        {{ request.user.username }}
+
+                    </span>
+
+                </p>
+
+                <div class="mt-6 inline-flex items-center px-5 py-2 rounded-full bg-white/20">
+
+                    <i class="fa-solid fa-circle-info mr-2"></i>
+
+                    {{ insight }}
+
+                </div>
+
+            </div>
+
+            <div class="hidden lg:flex">
+
+                <div class="w-32 h-32 rounded-full bg-white/10 flex items-center justify-center">
+
+                    <i class="fa-solid fa-chart-line text-6xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Statistics -->
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+        <!-- Employees -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-7 card">
+
+            <div class="flex justify-between items-center">
+
+                <div>
+
+                    <p class="text-gray-500">Employees</p>
+
+                    <h2 class="text-5xl font-bold text-blue-600 mt-2">
+
+                        {{ total_employees }}
+
+                    </h2>
+
+                </div>
+
+                <div class="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
+
+                    <i class="fa-solid fa-users text-blue-600 text-3xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Products -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-7 card">
+
+            <div class="flex justify-between items-center">
+
+                <div>
+
+                    <p class="text-gray-500">Products</p>
+
+                    <h2 class="text-5xl font-bold text-orange-500 mt-2">
+
+                        {{ total_products }}
+
+                    </h2>
+
+                </div>
+
+                <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center">
+
+                    <i class="fa-solid fa-boxes-stacked text-orange-500 text-3xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Customers -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-7 card">
+
+            <div class="flex justify-between items-center">
+
+                <div>
+
+                    <p class="text-gray-500">Customers</p>
+
+                    <h2 class="text-5xl font-bold text-pink-500 mt-2">
+
+                        {{ total_customers }}
+
+                    </h2>
+
+                </div>
+
+                <div class="w-16 h-16 rounded-2xl bg-pink-100 flex items-center justify-center">
+
+                    <i class="fa-solid fa-user-group text-pink-500 text-3xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Leave Requests -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-7 card">
+
+            <div class="flex justify-between items-center">
+
+                <div>
+
+                    <p class="text-gray-500">Leave Requests</p>
+
+                    <h2 class="text-5xl font-bold text-purple-600 mt-2">
+
+                        {{ total_leaves }}
+
+                    </h2>
+
+                </div>
+
+                <div class="w-16 h-16 rounded-2xl bg-purple-100 flex items-center justify-center">
+
+                    <i class="fa-solid fa-file-signature text-purple-600 text-3xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Pending Leaves -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-7 card">
+
+            <div class="flex justify-between items-center">
+
+                <div>
+
+                    <p class="text-gray-500">Pending Leaves</p>
+
+                    <h2 class="text-5xl font-bold text-yellow-500 mt-2">
+
+                        {{ pending_leaves }}
+
+                    </h2>
+
+                </div>
+
+                <div class="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center">
+
+                    <i class="fa-solid fa-hourglass-half text-yellow-500 text-3xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Today's Attendance -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-7 card">
+
+            <div class="flex justify-between items-center">
+
+                <div>
+
+                    <p class="text-gray-500">Today's Attendance</p>
+
+                    <h2 class="text-5xl font-bold text-green-600 mt-2">
+
+                        {{ total_attendance_today }}
+
+                    </h2>
+
+                </div>
+
+                <div class="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center">
+
+                    <i class="fa-solid fa-user-check text-green-600 text-3xl"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Middle Section -->
+
+    <div class="grid lg:grid-cols-3 gap-6">
+                <!-- Attendance Card -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-8 card">
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h2 class="text-2xl font-bold">
+                    Today's Attendance
+                </h2>
+
+                <i class="fa-solid fa-clock text-blue-600 text-2xl"></i>
+
+            </div>
+
+            {% if attendance %}
+
+                <div class="space-y-4">
+
+                    <div class="flex justify-between">
+
+                        <span class="text-gray-500">
+                            Status
+                        </span>
+
+                        <span class="font-semibold">
+                            {{ attendance.status }}
+                        </span>
+
+                    </div>
+
+                    <div class="flex justify-between">
+
+                        <span class="text-gray-500">
+                            Check In
+                        </span>
+
+                        <span>
+                            {{ attendance.check_in }}
+                        </span>
+
+                    </div>
+
+                    <div class="flex justify-between">
+
+                        <span class="text-gray-500">
+                            Check Out
+                        </span>
+
+                        <span>
+
+                            {% if attendance.check_out %}
+
+                                {{ attendance.check_out }}
+
+                            {% else %}
+
+                                --
+
+                            {% endif %}
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+            {% else %}
+
+                <p class="text-gray-500">
+                    Attendance has not been marked today.
+                </p>
+
+            {% endif %}
+
+            <form method="POST" class="mt-6">
+
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition">
+
+                    {% if attendance %}
+
+                        {% if attendance.check_out %}
+
+                            Attendance Completed
+
+                        {% else %}
+
+                            Check Out
+
+                        {% endif %}
+
+                    {% else %}
+
+                        Check In
+
+                    {% endif %}
+
+                </button>
+
+            </form>
+
+        </div>
+
+        <!-- System Overview -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-8 card">
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h2 class="text-2xl font-bold">
+                    System Overview
+                </h2>
+
+                <i class="fa-solid fa-microchip text-purple-600 text-2xl"></i>
+
+            </div>
+
+            <div class="space-y-4">
+
+                <div class="bg-blue-50 rounded-xl p-4">
+
+                    ✔ {{ insight }}
+
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-4">
+
+                    ✔ {{ present }} employees present today
+
+                </div>
+
+                <div class="bg-yellow-50 rounded-xl p-4">
+
+                    ✔ {{ pending }} leave request(s) pending
+
+                </div>
+
+                <div class="bg-purple-50 rounded-xl p-4">
+
+                    ✔ ERP modules operating normally
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Quick Actions -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-8 card">
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h2 class="text-2xl font-bold">
+                    Quick Actions
+                </h2>
+
+                <i class="fa-solid fa-bolt text-orange-500 text-2xl"></i>
+
+            </div>
+
+            <div class="grid gap-4">
+
+                <a href="{% url 'product_list' %}"
+                   class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-center transition">
+
+                    Products
+
+                </a>
+
+                <a href="{% url 'customer_list' %}"
+                   class="bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl text-center transition">
+
+                    Customers
+
+                </a>
+
+                <a href="{% url 'view_leaves' %}"
+                   class="bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl text-center transition">
+
+                    Leave Records
+
+                </a>
+
+                <a href="{% url 'upload_file' %}"
+                   class="bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl text-center transition">
+
+                    Documents
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Analytics -->
+
+    <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Attendance Analytics -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-8 card">
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h2 class="text-2xl font-bold">
+                    Attendance Analytics
+                </h2>
+
+                <i class="fa-solid fa-chart-column text-blue-600 text-2xl"></i>
+
+            </div>
+
+            <div class="relative w-full" style="height:300px;">
+
+                <canvas id="attendanceChart"></canvas>
+
+            </div>
+
+        </div>
+
+        <!-- Leave Distribution -->
+
+        <div class="bg-white rounded-3xl shadow-lg p-8 card">
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h2 class="text-2xl font-bold">
+                    Leave Distribution
+                </h2>
+
+                <i class="fa-solid fa-chart-pie text-green-600 text-2xl"></i>
+
+            </div>
+
+            <div class="relative w-full" style="height:300px;">
+
+                <canvas id="leaveChart"></canvas>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Recent Leave Applications -->
+
+    <div class="bg-white rounded-3xl shadow-lg overflow-hidden card">
+
+        <div class="px-8 py-6 border-b">
+
+            <h2 class="text-2xl font-bold">
+                Recent Leave Applications
+            </h2>
+
+            <p class="text-gray-500 mt-2">
+                Latest leave requests submitted by employees.
+            </p>
+
+        </div>
+
+        <table class="w-full">
+
+            <thead class="bg-slate-800 text-white">
+
+                <tr>
+
+                    <th class="p-5 text-left">
+                        Employee
+                    </th>
+
+                    <th class="p-5 text-left">
+                        Leave Type
+                    </th>
+
+                    <th class="p-5 text-left">
+                        Status
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for leave in recent_leaves %}
+
+                <tr class="border-b hover:bg-gray-50">
+
+                    <td class="p-5 font-semibold">
+
+                        {{ leave.employee.username }}
+
+                    </td>
+
+                    <td class="p-5">
+
+                        {{ leave.leave_type }}
+
+                    </td>
+
+                    <td class="p-5">
+
+                        {% if leave.status == "Approved" %}
+
+                            <span class="bg-green-100 text-green-700 px-4 py-2 rounded-full">
+
+                                Approved
+
+                            </span>
+
+                        {% elif leave.status == "Rejected" %}
+
+                            <span class="bg-red-100 text-red-700 px-4 py-2 rounded-full">
+
+                                Rejected
+
+                            </span>
+
+                        {% else %}
+
+                            <span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full">
+
+                                Pending
+
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr>
+
+                    <td colspan="3" class="text-center py-8 text-gray-400">
+
+                        No leave requests available.
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+    <script>
+
+let chartData = {};
+
+try {
+    chartData = JSON.parse("{{ chart_data|default:'{}'|escapejs }}");
+} catch (error) {
+    chartData = {};
+}
+
+const attendanceCanvas = document.getElementById("attendanceChart");
+
+if (attendanceCanvas) {
+
+    new Chart(attendanceCanvas, {
+        type: "bar",
+        data: {
+            labels: ["Present", "Absent"],
+            datasets: [{
+                label: "Employees",
+                data: [chartData.present || 0, chartData.absent || 0],
+                backgroundColor: [
+                    "#3B82F6",
+                    "#CBD5E1"
+                ]
+            }]
+        },
+        options: {
+            responsive: false,
+            animation: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+}
+
+const leaveCanvas = document.getElementById("leaveChart");
+
+if (leaveCanvas) {
+
+    new Chart(leaveCanvas, {
+        type: "doughnut",
+        data: {
+            labels: [
+                "Approved",
+                "Pending",
+                "Rejected"
+            ],
+            datasets: [{
+                data: [
+                    chartData.approved || 0,
+                    chartData.pending || 0,
+                    chartData.rejected || 0
+                ],
+                backgroundColor: [
+                    "#22C55E",
+                    "#FACC15",
+                    "#EF4444"
+                ]
+            }]
+        },
+        options: {
+            responsive: false,
+            animation: false
+        }
+    });
+
+}
+
+</script>
+
+</div>
+
+{% endblock %}

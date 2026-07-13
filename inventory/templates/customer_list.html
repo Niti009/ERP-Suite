@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex justify-between items-center mb-8">
+
+    <div>
+
+        <h1 class="text-4xl font-bold text-gray-800">
+            👥 Customers
+        </h1>
+
+        <p class="text-gray-500 mt-2">
+            Manage customer information.
+        </p>
+
+    </div>
+
+    <a href="{% url 'add_customer' %}"
+       class="bg-[#88BDF2] hover:bg-blue-500 text-white px-6 py-3 rounded-xl shadow-lg transition">
+
+        + Add Customer
+
+    </a>
+
+</div>
+
+<div class="bg-white rounded-3xl shadow-lg overflow-hidden">
+
+    <table class="w-full">
+
+        <thead class="bg-gradient-to-r from-[#88BDF2] to-[#C1BFFF] text-white">
+
+            <tr>
+
+                <th class="p-5 text-left">Customer</th>
+
+                <th class="p-5 text-left">Email</th>
+
+                <th class="p-5 text-left">Phone</th>
+
+                <th class="p-5 text-left">Address</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+        {% for customer in customers %}
+
+            <tr class="border-b hover:bg-gray-50 transition">
+
+                <td class="p-5 font-semibold">
+
+                    {{ customer.name }}
+
+                </td>
+
+                <td class="p-5">
+
+                    {{ customer.email }}
+
+                </td>
+
+                <td class="p-5">
+
+                    {{ customer.phone }}
+
+                </td>
+
+                <td class="p-5">
+
+                    {{ customer.address }}
+
+                </td>
+
+            </tr>
+
+        {% empty %}
+
+            <tr>
+
+                <td colspan="4" class="text-center p-10 text-gray-400">
+
+                    No Customers Found
+
+                </td>
+
+            </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

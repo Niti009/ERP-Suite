@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="rounded-3xl bg-gradient-to-r from-blue-700 to-slate-800 p-8 text-white shadow-xl">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-[0.3em] text-blue-100">Employee Profile</p>
+        <h1 class="mt-2 text-3xl font-bold">{{ employee.name }}</h1>
+        <p class="mt-2 text-blue-100">{{ employee.position }} • {{ employee.department }}</p>
+      </div>
+      <div class="rounded-2xl bg-white/15 px-5 py-4 backdrop-blur">
+        <p class="text-sm text-blue-100">Joined</p>
+        <p class="text-xl font-semibold">{{ employee.joining_date }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+    <div class="space-y-6">
+      <div class="rounded-2xl bg-white p-6 shadow-lg">
+        <h2 class="text-xl font-semibold">Profile Details</h2>
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <p class="text-sm text-slate-500">Email</p>
+            <p class="mt-1 font-medium">{{ employee.user.email|default:"Not provided" }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-500">Phone</p>
+            <p class="mt-1 font-medium">{{ employee.phone|default:"Not provided" }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-500">Department</p>
+            <p class="mt-1 font-medium">{{ employee.department }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-500">Salary</p>
+            <p class="mt-1 font-medium">{{ employee.salary }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-white p-6 shadow-lg">
+        <h2 class="text-xl font-semibold">Attendance Statistics</h2>
+        <div class="mt-4 grid gap-4 md:grid-cols-3">
+          <div class="rounded-xl bg-slate-100 p-4">
+            <p class="text-sm text-slate-500">Attendance %</p>
+            <p class="mt-2 text-3xl font-bold text-blue-600">{{ attendance_percentage }}%</p>
+          </div>
+          <div class="rounded-xl bg-slate-100 p-4">
+            <p class="text-sm text-slate-500">Present days</p>
+            <p class="mt-2 text-3xl font-bold text-emerald-600">{{ present_days }}</p>
+          </div>
+          <div class="rounded-xl bg-slate-100 p-4">
+            <p class="text-sm text-slate-500">Total records</p>
+            <p class="mt-2 text-3xl font-bold text-slate-700">{{ total_days }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <div class="rounded-2xl bg-white p-6 shadow-lg">
+        <h2 class="text-xl font-semibold">Leave Overview</h2>
+        <div class="mt-4 space-y-3">
+          <div class="flex items-center justify-between rounded-xl bg-amber-50 p-3">
+            <span class="text-amber-700">Pending</span>
+            <span class="font-bold text-amber-700">{{ pending_leaves }}</span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl bg-emerald-50 p-3">
+            <span class="text-emerald-700">Approved</span>
+            <span class="font-bold text-emerald-700">{{ approved_leaves }}</span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl bg-rose-50 p-3">
+            <span class="text-rose-700">Rejected</span>
+            <span class="font-bold text-rose-700">{{ rejected_leaves }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-white p-6 shadow-lg">
+        <h2 class="text-xl font-semibold">Recent Attendance</h2>
+        <div class="mt-4 space-y-2">
+          {% if records %}
+            {% for record in records %}
+              <div class="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+                <span>{{ record.date }}</span>
+                <span class="font-semibold {% if record.status == 'Present' %}text-emerald-600{% else %}text-rose-600{% endif %}">{{ record.status }}</span>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-sm text-slate-500">No attendance records yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

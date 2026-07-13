@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-2xl mx-auto bg-white rounded-3xl shadow-xl p-10">
+
+    <h2 class="text-3xl font-bold text-center text-[#88BDF2] mb-8">
+        👤 Add Customer
+    </h2>
+
+    <form method="POST">
+
+        {% csrf_token %}
+
+        <div class="space-y-5">
+
+            <div>
+                <label class="block mb-2 font-semibold">Customer Name</label>
+                {{ form.name }}
+            </div>
+
+            <div>
+                <label class="block mb-2 font-semibold">Email</label>
+                {{ form.email }}
+            </div>
+
+            <div>
+                <label class="block mb-2 font-semibold">Phone</label>
+                {{ form.phone }}
+            </div>
+
+            <div>
+                <label class="block mb-2 font-semibold">Address</label>
+                {{ form.address }}
+            </div>
+
+            <button type="submit"
+                class="w-full bg-[#88BDF2] text-white py-3 rounded-xl hover:bg-blue-500 transition">
+
+                Save Customer
+
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

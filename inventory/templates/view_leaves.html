@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="flex justify-between items-center mb-8">
+
+    <div>
+
+        {% if request.user.is_superuser %}
+
+        <h1 class="text-4xl font-bold text-gray-800">
+            Leave Management
+        </h1>
+
+        <p class="text-gray-500 mt-2">
+            Manage employee leave requests.
+        </p>
+
+        {% else %}
+
+        <h1 class="text-4xl font-bold text-gray-800">
+            My Leave Status
+        </h1>
+
+        <p class="text-gray-500 mt-2">
+            View your leave applications and their current status.
+        </p>
+
+        {% endif %}
+
+    </div>
+
+    {% if not request.user.is_superuser %}
+
+    <a href="{% url 'apply_leave' %}"
+       class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg">
+
+        Apply Leave
+
+    </a>
+
+    {% endif %}
+
+</div>
+
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+
+<table class="w-full">
+
+<thead class="bg-slate-800 text-white">
+
+<tr>
+
+{% if request.user.is_superuser %}
+<th class="p-5 text-left">Employee</th>
+{% endif %}
+
+<th class="p-5 text-left">Leave Type</th>
+<th class="p-5 text-left">Start Date</th>
+<th class="p-5 text-left">End Date</th>
+<th class="p-5 text-left">Status</th>
+
+{% if request.user.is_superuser %}
+<th class="p-5 text-center">Action</th>
+{% endif %}
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for leave in leaves %}
+
+<tr class="border-b hover:bg-slate-50">
+
+{% if request.user.is_superuser %}
+
+<td class="p-5 font-semibold">
+{{ leave.employee.username }}
+</td>
+
+{% endif %}
+
+<td class="p-5">
+{{ leave.leave_type }}
+</td>
+
+<td class="p-5">
+{{ leave.start_date }}
+</td>
+
+<td class="p-5">
+{{ leave.end_date }}
+</td>
+
+<td class="p-5">
+
+{% if leave.status == "Approved" %}
+
+<span class="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold">
+
+Approved
+
+</span>
+
+{% elif leave.status == "Rejected" %}
+
+<span class="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm font-semibold">
+
+Rejected
+
+</span>
+
+{% else %}
+
+<span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full text-sm font-semibold">
+
+Pending
+
+</span>
+
+{% endif %}
+
+</td>
+
+{% if request.user.is_superuser %}
+
+<td class="p-5 text-center">
+
+{% if leave.status == "Pending" %}
+
+<a href="{% url 'approve_leave' leave.id %}"
+class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+
+Approve
+
+</a>
+
+<a href="{% url 'reject_leave' leave.id %}"
+class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg ml-2">
+
+Reject
+
+</a>
+
+{% else %}
+
+<span class="text-gray-400">
+
+Completed
+
+</span>
+
+{% endif %}
+
+</td>
+
+{% endif %}
+
+</tr>
+
+{% empty %}
+
+<tr>
+
+<td colspan="{% if request.user.is_superuser %}6{% else %}4{% endif %}"
+class="text-center py-10 text-gray-500">
+
+No leave applications found.
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+{% endblock %}

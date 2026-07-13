@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white shadow-lg rounded-2xl p-6 mt-10 border border-gray-200">
+  <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Smart Attendance Marking</h2>
+
+  {% if error %}
+    <div class="text-red-600 font-medium text-center mb-4">{{ error }}</div>
+  {% else %}
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label for="check_in" class="block text-gray-700 font-medium mb-1">Check In:</label>
+        {{ form.check_in }}
+      </div>
+      <div>
+        <label for="check_out" class="block text-gray-700 font-medium mb-1">Check Out:</label>
+        {{ form.check_out }}
+      </div>
+      <div class="text-center">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full">
+          Mark Attendance
+        </button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
