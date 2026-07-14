@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 import json
+from types import SimpleNamespace
 
 from django.utils import timezone
 
@@ -22,6 +24,7 @@ from .forms import (
     CustomerForm,
     FileUploadForm,
 )
+from .permissions import demo_read_only, is_demo_user
 
 
 def login_view(request):
@@ -49,6 +52,73 @@ def logout_view(request):
     logout(request)
 
     return redirect("login")
+
+
+def _get_or_create_demo_user():
+    """Provision the dedicated demo account and keep it read-only."""
+    user_model = get_user_model()
+
+    try:
+        demo_user = user_model.objects.get(username=settings.DEMO_LOGIN_USERNAME)
+    except user_model.DoesNotExist:
+        try:
+            demo_user = user_model.objects.create_user(
+                username=settings.DEMO_LOGIN_USERNAME,
+                password=settings.DEMO_LOGIN_PASSWORD,
+                is_staff=False,
+                is_superuser=False,
+            )
+        except Exception:
+            return None
+
+    changed_fields = []
+    for field_name, expected_value in (
+        ("is_active", True),
+        ("is_staff", False),
+        ("is_superuser", False),
+    ):
+        if getattr(demo_user, field_name) != expected_value:
+            setattr(demo_user, field_name, expected_value)
+            changed_fields.append(field_name)
+
+    if changed_fields:
+        demo_user.save(update_fields=changed_fields)
+
+    # A pre-existing account must not retain elevated or explicitly granted access.
+    demo_user.groups.clear()
+    demo_user.user_permissions.clear()
+
+    if not demo_user.check_password(settings.DEMO_LOGIN_PASSWORD):
+        demo_user.set_password(settings.DEMO_LOGIN_PASSWORD)
+        demo_user.save(update_fields=["password"])
+
+    return demo_user
+
+
+def demo_login_view(request):
+    """Authenticate using Django's auth system and log in the dedicated demo user."""
+    if _get_or_create_demo_user() is None:
+        messages.error(
+            request,
+            "The demo account is currently unavailable. Please try again later or use a regular login.",
+        )
+        return redirect("login")
+
+    demo_user = authenticate(
+        username=settings.DEMO_LOGIN_USERNAME,
+        password=settings.DEMO_LOGIN_PASSWORD,
+    )
+
+    if demo_user is None:
+        messages.error(
+            request,
+            "The demo account is currently unavailable. Please try again later or use a regular login.",
+        )
+        return redirect("login")
+
+    login(request, demo_user)
+    messages.success(request, "You are now exploring the demo account.")
+    return redirect("dashboard")
 
 
 def signup_view(request):
@@ -79,6 +149,13 @@ def dashboard(request):
     ).first()
 
     if request.method == "POST":
+
+        if is_demo_user(request.user):
+            messages.error(
+                request,
+                "Demo mode is read-only. Please sign in with a full account to make changes.",
+            )
+            return redirect("dashboard")
 
         if attendance is None:
 
@@ -198,6 +275,7 @@ def dashboard(request):
 
 
 @login_required
+@demo_read_only
 def apply_leave(request):
 
     if request.method == "POST":
@@ -257,6 +335,7 @@ def view_leaves(request):
 
 
 @login_required
+@demo_read_only
 def approve_leave(request, leave_id):
 
     if not request.user.is_superuser:
@@ -285,6 +364,7 @@ def approve_leave(request, leave_id):
 
 
 @login_required
+@demo_read_only
 def reject_leave(request, leave_id):
 
     if not request.user.is_superuser:
@@ -350,17 +430,27 @@ def attendance_history(request):
 
 @login_required
 def employee_profile(request):
-    employee, created = Employee.objects.get_or_create(
-        user=request.user,
-        defaults={
-            "name": request.user.username,
-            "phone": "",
-            "position": "Not Assigned",
-            "salary": 0.00,
-            "joining_date": timezone.now().date(),
-            "department": None,
-        },
-    )
+    if is_demo_user(request.user):
+        employee = SimpleNamespace(
+            name=request.user.username,
+            phone="",
+            position="Demo Viewer",
+            salary=0.00,
+            joining_date=timezone.now().date(),
+            department=None,
+        )
+    else:
+        employee, created = Employee.objects.get_or_create(
+            user=request.user,
+            defaults={
+                "name": request.user.username,
+                "phone": "",
+                "position": "Not Assigned",
+                "salary": 0.00,
+                "joining_date": timezone.now().date(),
+                "department": None,
+            },
+        )
 
     records = Attendance.objects.filter(employee=request.user).order_by("-date")
     recent_records = records[:10]
@@ -404,6 +494,7 @@ def product_list(request):
 
 
 @login_required
+@demo_read_only
 def add_product(request):
 
     if request.method == "POST":
@@ -449,6 +540,7 @@ def customer_list(request):
 
 
 @login_required
+@demo_read_only
 def add_customer(request):
 
     if request.method == "POST":
@@ -480,6 +572,7 @@ def add_customer(request):
 
 
 @login_required
+@demo_read_only
 def upload_file(request):
 
     if request.method == "POST":

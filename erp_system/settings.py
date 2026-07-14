@@ -98,6 +98,10 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
+# Demo account settings
+DEMO_LOGIN_USERNAME = 'demo.erp'
+DEMO_LOGIN_PASSWORD = 'Demo@2026!'
+
 import os
 
 MEDIA_URL = '/media/'
