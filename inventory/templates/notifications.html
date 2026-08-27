@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+  <!-- Header -->
+  <div class="rounded-3xl bg-gradient-to-r from-blue-700 to-slate-800 p-8 text-white shadow-xl">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold">Notifications</h1>
+        <p class="text-blue-100 mt-2">Stay updated with your ERP activities</p>
+      </div>
+      <div class="text-center">
+        <p class="text-blue-100 text-sm">Unread</p>
+        <p class="text-4xl font-bold">{{ unread_count }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  {% if unread_count > 0 %}
+    <div class="flex gap-4">
+      <a href="{% url 'mark_all_notifications_read' %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+        <i class="fa-solid fa-check-double mr-2"></i>
+        Mark All as Read
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- Notifications List -->
+  <div class="space-y-4">
+    {% if notifications %}
+      {% for notification in notifications %}
+        <div class="bg-white rounded-xl shadow-md hover:shadow-lg transition border-l-4 {% if notification.is_read %}border-gray-300 bg-gray-50{% else %}border-blue-600{% endif %} p-6">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-full {% if notification.notification_type == 'leave_approved' or notification.notification_type == 'attendance_approved' %}bg-green-100{% elif notification.notification_type == 'leave_rejected' or notification.notification_type == 'attendance_rejected' %}bg-red-100{% else %}bg-blue-100{% endif %} flex items-center justify-center">
+                  {% if 'approved' in notification.notification_type %}
+                    <i class="fa-solid fa-check {% if 'leave_approved' in notification.notification_type or 'attendance_approved' in notification.notification_type %}text-green-600{% else %}text-red-600{% endif %}"></i>
+                  {% elif 'rejected' in notification.notification_type %}
+                    <i class="fa-solid fa-times text-red-600"></i>
+                  {% elif 'submitted' in notification.notification_type %}
+                    <i class="fa-solid fa-paper-plane text-blue-600"></i>
+                  {% elif 'profile' in notification.notification_type %}
+                    <i class="fa-solid fa-user text-blue-600"></i>
+                  {% else %}
+                    <i class="fa-solid fa-bell text-yellow-600"></i>
+                  {% endif %}
+                </div>
+                
+                <div>
+                  <p class="font-semibold text-gray-900">{{ notification.title }}</p>
+                  <p class="text-sm text-gray-600 mt-1">{{ notification.description }}</p>
+                </div>
+              </div>
+              
+              <p class="text-xs text-gray-500 mt-2">
+                <i class="fa-solid fa-clock mr-1"></i>
+                {{ notification.created_at|timesince }} ago
+              </p>
+            </div>
+
+            <div class="ml-4">
+              <a href="{% url 'mark_notification_read' notification.id %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm">
+                <i class="fa-solid fa-arrow-right"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="bg-white rounded-2xl shadow-lg p-12 text-center">
+        <i class="fa-solid fa-bell-slash text-6xl text-gray-400 mb-4"></i>
+        <p class="text-xl font-semibold text-gray-700 mb-2">No Notifications</p>
+        <p class="text-gray-500">You're all caught up! Check back later for updates</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

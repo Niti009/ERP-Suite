@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <!-- Header -->
+  <div class="mb-8">
+    <h2 class="text-4xl font-bold text-slate-800">Reject Attendance</h2>
+    <p class="text-gray-500 mt-2">Provide a reason for rejecting this attendance record</p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-lg p-8">
+    <!-- Attendance Details -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-sm text-gray-600">Employee</p>
+          <p class="text-lg font-semibold text-gray-900">{{ attendance.employee.username }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Date</p>
+          <p class="text-lg font-semibold text-gray-900">{{ attendance.date }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Check-In</p>
+          <p class="text-lg font-semibold text-gray-900">
+            {% if attendance.check_in %}
+              {{ attendance.check_in|time:"H:i" }}
+            {% else %}
+              Not recorded
+            {% endif %}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Check-Out</p>
+          <p class="text-lg font-semibold text-gray-900">
+            {% if attendance.check_out %}
+              {{ attendance.check_out|time:"H:i" }}
+            {% else %}
+              Not recorded
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rejection Form -->
+    <form method="POST" class="space-y-6">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          <i class="fa-solid fa-comment text-red-600 mr-2"></i>
+          Rejection Reason
+        </label>
+        <textarea 
+          name="rejection_reason" 
+          required 
+          rows="5"
+          class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
+          placeholder="Explain why you're rejecting this attendance record..."></textarea>
+        <p class="text-sm text-gray-500 mt-2">This message will be sent to the employee</p>
+      </div>
+
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-700 text-sm">
+          <i class="fa-solid fa-exclamation-triangle mr-2"></i>
+          <strong>Note:</strong> The employee will be notified about this rejection along with the reason provided.
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-4 pt-6 border-t border-gray-200">
+        <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-md">
+          <i class="fa-solid fa-times mr-2"></i>
+          Reject Attendance
+        </button>
+        <a href="{% url 'attendance_approvals' %}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 rounded-lg transition duration-200 text-center shadow-md">
+          <i class="fa-solid fa-arrow-left mr-2"></i>
+          Back
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

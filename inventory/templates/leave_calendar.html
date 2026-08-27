@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800">
+                Leave Calendar
+            </h1>
+
+            <p class="text-gray-500 mt-1">
+                View employee leave schedules and upcoming time off.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'apply_leave' %}"
+            class="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
+        >
+            <i class="fa-solid fa-plus mr-2"></i>
+            Apply Leave
+        </a>
+
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">
+                        On Leave Today
+                    </p>
+
+                    <p class="text-3xl font-bold text-slate-800 mt-2">
+                        {{ today_leaves|length }}
+                    </p>
+                </div>
+
+                <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <i class="fa-solid fa-calendar-day text-blue-600 text-xl"></i>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">
+                        Upcoming Leaves
+                    </p>
+
+                    <p class="text-3xl font-bold text-slate-800 mt-2">
+                        {{ upcoming_leaves|length }}
+                    </p>
+                </div>
+
+                <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                    <i class="fa-solid fa-calendar-check text-green-600 text-xl"></i>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">
+                        Pending Requests
+                    </p>
+
+                    <p class="text-3xl font-bold text-slate-800 mt-2">
+                        {{ pending_count }}
+                    </p>
+                </div>
+
+                <div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center">
+                    <i class="fa-solid fa-hourglass-half text-yellow-600 text-xl"></i>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Month Navigation -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+
+        <div class="flex items-center justify-between">
+
+            {% if month == 1 %}
+                <a href="?year={{ year|add:"-1" }}&month=12"
+                   class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </a>
+            {% else %}
+                <a href="?year={{ year }}&month={{ month|add:"-1" }}"
+                   class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </a>
+            {% endif %}
+
+            <h2 class="text-2xl font-bold text-slate-800">
+                {{ month_name }}
+            </h2>
+
+            {% if month == 12 %}
+                <a href="?year={{ year|add:"1" }}&month=1"
+                   class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            {% else %}
+                <a href="?year={{ year }}&month={{ month|add:"1" }}"
+                   class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- Leave List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-slate-800">
+                Leave Schedule
+            </h2>
+
+            <p class="text-sm text-gray-500 mt-1">
+                Leave applications overlapping {{ month_name }}.
+            </p>
+        </div>
+
+        {% if leaves %}
+
+        <div class="divide-y divide-gray-100">
+
+            {% for leave in leaves %}
+
+            <div class="px-6 py-5 hover:bg-slate-50 transition">
+
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+                    <div class="flex items-center gap-4">
+
+                        <div class="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
+                            <i class="fa-solid fa-user text-blue-600"></i>
+                        </div>
+
+                        <div>
+                            <p class="font-semibold text-slate-800">
+                                {{ leave.employee.username }}
+                            </p>
+
+                            <p class="text-sm text-gray-500 mt-1">
+                                {{ leave.start_date }} → {{ leave.end_date }}
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <div class="flex items-center gap-3">
+
+                        {% if leave.status == "Approved" %}
+
+                        <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                            Approved
+                        </span>
+
+                        {% elif leave.status == "Pending" %}
+
+                        <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">
+                            Pending
+                        </span>
+
+                        {% else %}
+
+                        <span class="px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
+                            Rejected
+                        </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <div class="p-14 text-center">
+
+            <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                <i class="fa-solid fa-calendar-xmark text-2xl text-slate-400"></i>
+            </div>
+
+            <h3 class="text-xl font-bold text-slate-800">
+                No leave records
+            </h3>
+
+            <p class="text-gray-500 mt-2">
+                There are no leave applications for this month.
+            </p>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+    <!-- Upcoming Leave -->
+    {% if upcoming_leaves %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+
+        <div class="px-6 py-5 border-b border-gray-200">
+
+            <h2 class="text-xl font-bold text-slate-800">
+                Upcoming Leave
+            </h2>
+
+            <p class="text-sm text-gray-500 mt-1">
+                Approved leave starting within the next 7 days.
+            </p>
+
+        </div>
+
+        <div class="divide-y divide-gray-100">
+
+            {% for leave in upcoming_leaves %}
+
+            <div class="px-6 py-4 flex items-center justify-between">
+
+                <div>
+                    <p class="font-semibold text-slate-800">
+                        {{ leave.employee.username }}
+                    </p>
+
+                    <p class="text-sm text-gray-500">
+                        {{ leave.start_date }} → {{ leave.end_date }}
+                    </p>
+                </div>
+
+                <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                    Approved
+                </span>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

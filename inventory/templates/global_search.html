@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto space-y-8">
+
+    <div>
+        <h1 class="text-3xl font-bold text-slate-800">Global Search</h1>
+        <p class="text-gray-500 mt-1">
+            Search across your ERP Suite
+        </p>
+    </div>
+
+    <form method="get" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <div class="flex gap-3">
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Search employees, products, customers, leaves..."
+                class="flex-1 px-5 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autocomplete="off"
+            >
+
+            <button
+                type="submit"
+                class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
+            >
+                <i class="fa-solid fa-magnifying-glass mr-2"></i>
+                Search
+            </button>
+        </div>
+    </form>
+
+    {% if query %}
+
+        {% if has_results %}
+
+            <!-- Employees -->
+            {% if results.employees %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-users text-blue-600 mr-2"></i>
+                        Employees
+                    </h2>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    {% for employee in results.employees %}
+                    <div class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+                        <div>
+                            <p class="font-semibold text-slate-800">
+                                {{ employee.name }}
+                            </p>
+                            {% if employee.user %}
+                            <p class="text-sm text-gray-500">
+                                @{{ employee.user.username }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Products -->
+            {% if results.products %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-boxes-stacked text-blue-600 mr-2"></i>
+                        Products
+                    </h2>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    {% for product in results.products %}
+                    <div class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+                        <div>
+                            <p class="font-semibold text-slate-800">
+                                {{ product.name }}
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                Stock: {{ product.quantity }}
+                            </p>
+                        </div>
+
+                        <span class="text-sm font-semibold text-slate-700">
+                            ₹{{ product.price }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Customers -->
+            {% if results.customers %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-user-group text-blue-600 mr-2"></i>
+                        Customers
+                    </h2>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    {% for customer in results.customers %}
+                    <div class="px-6 py-4">
+                        <p class="font-semibold text-slate-800">
+                            {{ customer.name }}
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            {{ customer.email }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Leaves -->
+            {% if results.leaves %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-calendar-days text-blue-600 mr-2"></i>
+                        Leave Records
+                    </h2>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    {% for leave in results.leaves %}
+                    <div class="px-6 py-4 flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-slate-800">
+                                {{ leave.employee.username }}
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                {{ leave.start_date }} → {{ leave.end_date }}
+                            </p>
+                        </div>
+
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold
+                            {% if leave.status == 'Approved' %}
+                                bg-green-100 text-green-700
+                            {% elif leave.status == 'Pending' %}
+                                bg-yellow-100 text-yellow-700
+                            {% else %}
+                                bg-red-100 text-red-700
+                            {% endif %}
+                        ">
+                            {{ leave.status }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Attendance -->
+            {% if results.attendance %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-clock text-blue-600 mr-2"></i>
+                        Attendance
+                    </h2>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    {% for record in results.attendance %}
+                    <div class="px-6 py-4 flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-slate-800">
+                                {{ record.employee.username }}
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                {{ record.date }}
+                            </p>
+                        </div>
+
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                            {{ record.status }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Documents -->
+            {% if results.documents %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fa-solid fa-folder-open text-blue-600 mr-2"></i>
+                        Documents
+                    </h2>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    {% for document in results.documents %}
+                    <div class="px-6 py-4">
+                        <p class="font-semibold text-slate-800">
+                            {{ document.file.name }}
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            Uploaded {{ document.uploaded_at }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+        {% else %}
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
+                <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-magnifying-glass text-2xl text-slate-400"></i>
+                </div>
+
+                <h2 class="text-xl font-bold text-slate-800">
+                    No results found
+                </h2>
+
+                <p class="text-gray-500 mt-2">
+                    Try searching with a different keyword.
+                </p>
+            </div>
+
+        {% endif %}
+
+    {% else %}
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
+            <div class="w-16 h-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                <i class="fa-solid fa-magnifying-glass text-2xl text-blue-600"></i>
+            </div>
+
+            <h2 class="text-xl font-bold text-slate-800">
+                Search your ERP
+            </h2>
+
+            <p class="text-gray-500 mt-2">
+                Find employees, products, customers, attendance, leaves and documents.
+            </p>
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}
