@@ -23,6 +23,9 @@ from .forms import (
     ProductForm,
     CustomerForm,
     FileUploadForm,
+    UserProfileForm,
+    EmployeeProfileForm,
+    CustomPasswordChangeForm,
 )
 from .permissions import demo_read_only, is_demo_user
 
@@ -477,6 +480,83 @@ def employee_profile(request):
             "rejected_leaves": rejected_leaves,
         },
     )
+
+
+@login_required
+@demo_read_only
+def edit_profile(request):
+    """Allow users to edit their own profile"""
+    # Get or create Employee object
+    employee, created = Employee.objects.get_or_create(
+        user=request.user,
+        defaults={
+            "name": request.user.username,
+            "phone": "",
+            "position": "Not Assigned",
+            "salary": 0.00,
+            "joining_date": timezone.now().date(),
+            "department": None,
+        },
+    )
+    
+    if request.method == "POST":
+        # Handle photo clearing
+        if 'clear_photo' in request.POST and employee.profile_photo:
+            employee.profile_photo.delete()
+            employee.save()
+            messages.success(request, "Profile photo removed successfully!")
+            return redirect("edit_profile")
+        
+        user_form = UserProfileForm(request.POST, instance=request.user)
+        employee_form = EmployeeProfileForm(request.POST, request.FILES, instance=employee)
+        
+        if user_form.is_valid() and employee_form.is_valid():
+            user_form.save()
+            
+            # Validate file size for profile photo
+            if 'profile_photo' in request.FILES:
+                file = request.FILES['profile_photo']
+                if file.size > 5 * 1024 * 1024:  # 5MB limit
+                    messages.error(request, "Profile photo must be less than 5MB")
+                    return render(request, "profile_form.html", {
+                        "user_form": user_form,
+                        "employee_form": employee_form,
+                        "employee": employee,
+                    })
+            
+            employee_form.save()
+            messages.success(request, "Your profile has been updated successfully!")
+            return redirect("employee_profile")
+    else:
+        user_form = UserProfileForm(instance=request.user)
+        employee_form = EmployeeProfileForm(instance=employee)
+    
+    context = {
+        "user_form": user_form,
+        "employee_form": employee_form,
+        "employee": employee,
+    }
+    
+    return render(request, "profile_form.html", context)
+
+
+@login_required
+@demo_read_only
+def change_password_view(request):
+    """Allow users to change their password"""
+    if request.method == "POST":
+        form = CustomPasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Update the session to prevent logout
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, user)
+            messages.success(request, "Your password has been changed successfully!")
+            return redirect("employee_profile")
+    else:
+        form = CustomPasswordChangeForm(request.user)
+    
+    return render(request, "change_password.html", {"form": form})
 
 
 @login_required

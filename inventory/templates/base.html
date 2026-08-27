@@ -419,9 +419,9 @@ class="relative w-11 h-11 rounded-full bg-slate-200 hover:bg-slate-300 transitio
 
 </div>
 
-<div class="hidden md:flex items-center gap-3">
+<div class="hidden md:flex items-center gap-3 relative" id="profileDropdown">
 
-<a href="{% url 'employee_profile' %}" class="flex items-center gap-3 hover:opacity-80 transition">
+<button onclick="toggleProfileDropdown()" class="flex items-center gap-3 hover:opacity-80 transition">
 
 <div class="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
 
@@ -453,7 +453,58 @@ Employee
 
 </div>
 
+</button>
+
+<!-- Profile Dropdown Menu -->
+<div id="profileDropdownMenu" class="hidden absolute right-0 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden top-full">
+
+<div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-white">
+
+<p class="font-semibold">{{ request.user.first_name|default:request.user.username }}</p>
+
+<p class="text-xs text-blue-100">{{ request.user.email|default:"No email" }}</p>
+
+</div>
+
+<nav class="py-2">
+
+<a href="{% url 'employee_profile' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-100 transition">
+
+<i class="fa-solid fa-user-circle text-blue-600 w-5"></i>
+
+<span>My Profile</span>
+
 </a>
+
+<a href="{% url 'edit_profile' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-100 transition">
+
+<i class="fa-solid fa-pen-to-square text-amber-600 w-5"></i>
+
+<span>Edit Profile</span>
+
+</a>
+
+<a href="{% url 'change_password' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-100 transition">
+
+<i class="fa-solid fa-lock text-green-600 w-5"></i>
+
+<span>Change Password</span>
+
+</a>
+
+<hr class="my-2">
+
+<a href="{% url 'logout' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-600">
+
+<i class="fa-solid fa-right-from-bracket w-5"></i>
+
+<span>Logout</span>
+
+</a>
+
+</nav>
+
+</div>
 
 </div>
 
@@ -574,6 +625,23 @@ notificationPanel.classList.add("hidden");
 });
 
 }
+
+// Profile Dropdown Toggle
+function toggleProfileDropdown() {
+  const menu = document.getElementById("profileDropdownMenu");
+  if (menu) {
+    menu.classList.toggle("hidden");
+  }
+}
+
+// Close profile dropdown when clicking outside
+document.addEventListener("click", function(event) {
+  const dropdown = document.getElementById("profileDropdown");
+  const menu = document.getElementById("profileDropdownMenu");
+  if (dropdown && menu && !dropdown.contains(event.target)) {
+    menu.classList.add("hidden");
+  }
+});
 
 </script>
 

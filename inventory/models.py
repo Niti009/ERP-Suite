@@ -11,11 +11,15 @@ class Department(models.Model):
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20, blank=True)
     position = models.CharField(max_length=100)
-    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2)
     joining_date = models.DateField()
+    employee_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    location = models.CharField(max_length=100, blank=True)
+    bio = models.TextField(blank=True)
+    profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
 
     def __str__(self):
         return self.name

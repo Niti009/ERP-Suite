@@ -2,25 +2,75 @@
 
 {% block content %}
 <div class="space-y-8">
+  <!-- Profile Header with Photo -->
   <div class="rounded-3xl bg-gradient-to-r from-blue-700 to-slate-800 p-8 text-white shadow-xl">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="text-sm uppercase tracking-[0.3em] text-blue-100">Employee Profile</p>
-        <h1 class="mt-2 text-3xl font-bold">{{ employee.name }}</h1>
-        <p class="mt-2 text-blue-100">{{ employee.position }} • {{ employee.department }}</p>
+    <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-col md:flex-row md:items-center gap-6">
+        <!-- Profile Photo -->
+        <div class="shrink-0">
+          {% if employee.profile_photo %}
+            <img src="{{ employee.profile_photo.url }}" alt="Profile Photo" class="w-24 h-24 rounded-2xl shadow-lg object-cover border-4 border-white/20">
+          {% else %}
+            <div class="w-24 h-24 rounded-2xl bg-white/20 flex items-center justify-center shadow-lg border-4 border-white/20">
+              <i class="fa-solid fa-user text-4xl"></i>
+            </div>
+          {% endif %}
+        </div>
+        
+        <!-- Profile Info -->
+        <div>
+          <p class="text-sm uppercase tracking-[0.3em] text-blue-100">Employee Profile</p>
+          <h1 class="mt-2 text-3xl font-bold">{{ employee.name }}</h1>
+          <p class="mt-2 text-blue-100">
+            <i class="fa-solid fa-briefcase mr-2"></i>
+            {{ employee.position }} • {{ employee.department }}
+          </p>
+          {% if employee.employee_id %}
+            <p class="mt-2 text-blue-100">
+              <i class="fa-solid fa-id-card mr-2"></i>
+              Employee ID: {{ employee.employee_id }}
+            </p>
+          {% endif %}
+        </div>
       </div>
-      <div class="rounded-2xl bg-white/15 px-5 py-4 backdrop-blur">
-        <p class="text-sm text-blue-100">Joined</p>
-        <p class="text-xl font-semibold">{{ employee.joining_date }}</p>
+
+      <div class="space-y-3">
+        <div class="rounded-2xl bg-white/15 px-5 py-4 backdrop-blur">
+          <p class="text-sm text-blue-100">Joined</p>
+          <p class="text-xl font-semibold">{{ employee.joining_date }}</p>
+        </div>
+        <a href="{% url 'edit_profile' %}" class="block bg-white text-blue-700 hover:bg-blue-50 font-semibold py-2 px-4 rounded-xl transition text-center">
+          <i class="fa-solid fa-pen-to-square mr-2"></i>
+          Edit Profile
+        </a>
       </div>
     </div>
   </div>
 
+  <!-- Bio Section (if present) -->
+  {% if employee.bio %}
+    <div class="rounded-2xl bg-white p-6 shadow-lg border-l-4 border-blue-600">
+      <h2 class="text-xl font-semibold text-slate-800 mb-3">
+        <i class="fa-solid fa-quote-left text-blue-600 mr-2"></i>
+        About
+      </h2>
+      <p class="text-slate-700 leading-relaxed">{{ employee.bio }}</p>
+    </div>
+  {% endif %}
+
   <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
     <div class="space-y-6">
+      <!-- Profile Details -->
       <div class="rounded-2xl bg-white p-6 shadow-lg">
-        <h2 class="text-xl font-semibold">Profile Details</h2>
+        <h2 class="text-xl font-semibold text-slate-800 mb-4">
+          <i class="fa-solid fa-user-circle text-blue-600 mr-2"></i>
+          Profile Details
+        </h2>
         <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <p class="text-sm text-slate-500">Full Name</p>
+            <p class="mt-1 font-medium">{{ employee.name|default:"Not provided" }}</p>
+          </div>
           <div>
             <p class="text-sm text-slate-500">Email</p>
             <p class="mt-1 font-medium">{{ employee.user.email|default:"Not provided" }}</p>
@@ -31,27 +81,47 @@
           </div>
           <div>
             <p class="text-sm text-slate-500">Department</p>
-            <p class="mt-1 font-medium">{{ employee.department }}</p>
+            <p class="mt-1 font-medium">{{ employee.department|default:"Not assigned" }}</p>
+          </div>
+          {% if employee.employee_id %}
+            <div>
+              <p class="text-sm text-slate-500">Employee ID</p>
+              <p class="mt-1 font-medium">{{ employee.employee_id }}</p>
+            </div>
+          {% endif %}
+          {% if employee.location %}
+            <div>
+              <p class="text-sm text-slate-500">Location</p>
+              <p class="mt-1 font-medium">{{ employee.location }}</p>
+            </div>
+          {% endif %}
+          <div>
+            <p class="text-sm text-slate-500">Job Title</p>
+            <p class="mt-1 font-medium">{{ employee.position|default:"Not assigned" }}</p>
           </div>
           <div>
             <p class="text-sm text-slate-500">Salary</p>
-            <p class="mt-1 font-medium">{{ employee.salary }}</p>
+            <p class="mt-1 font-medium">₹{{ employee.salary|default:"0" }}</p>
           </div>
         </div>
       </div>
 
+      <!-- Attendance Statistics -->
       <div class="rounded-2xl bg-white p-6 shadow-lg">
-        <h2 class="text-xl font-semibold">Attendance Statistics</h2>
+        <h2 class="text-xl font-semibold text-slate-800 mb-4">
+          <i class="fa-solid fa-chart-line text-blue-600 mr-2"></i>
+          Attendance Statistics
+        </h2>
         <div class="mt-4 grid gap-4 md:grid-cols-3">
-          <div class="rounded-xl bg-slate-100 p-4">
+          <div class="rounded-xl bg-blue-50 p-4 border-l-4 border-blue-600">
             <p class="text-sm text-slate-500">Attendance %</p>
             <p class="mt-2 text-3xl font-bold text-blue-600">{{ attendance_percentage }}%</p>
           </div>
-          <div class="rounded-xl bg-slate-100 p-4">
+          <div class="rounded-xl bg-emerald-50 p-4 border-l-4 border-emerald-600">
             <p class="text-sm text-slate-500">Present days</p>
             <p class="mt-2 text-3xl font-bold text-emerald-600">{{ present_days }}</p>
           </div>
-          <div class="rounded-xl bg-slate-100 p-4">
+          <div class="rounded-xl bg-slate-100 p-4 border-l-4 border-slate-600">
             <p class="text-sm text-slate-500">Total records</p>
             <p class="mt-2 text-3xl font-bold text-slate-700">{{ total_days }}</p>
           </div>
@@ -60,37 +130,67 @@
     </div>
 
     <div class="space-y-6">
+      <!-- Leave Overview -->
       <div class="rounded-2xl bg-white p-6 shadow-lg">
-        <h2 class="text-xl font-semibold">Leave Overview</h2>
+        <h2 class="text-xl font-semibold text-slate-800 mb-4">
+          <i class="fa-solid fa-calendar-days text-blue-600 mr-2"></i>
+          Leave Overview
+        </h2>
         <div class="mt-4 space-y-3">
-          <div class="flex items-center justify-between rounded-xl bg-amber-50 p-3">
-            <span class="text-amber-700">Pending</span>
-            <span class="font-bold text-amber-700">{{ pending_leaves }}</span>
+          <div class="flex items-center justify-between rounded-xl bg-amber-50 p-3 border-l-4 border-amber-600">
+            <span class="text-amber-900 font-medium">Pending</span>
+            <span class="font-bold text-amber-700 text-lg">{{ pending_leaves }}</span>
           </div>
-          <div class="flex items-center justify-between rounded-xl bg-emerald-50 p-3">
-            <span class="text-emerald-700">Approved</span>
-            <span class="font-bold text-emerald-700">{{ approved_leaves }}</span>
+          <div class="flex items-center justify-between rounded-xl bg-emerald-50 p-3 border-l-4 border-emerald-600">
+            <span class="text-emerald-900 font-medium">Approved</span>
+            <span class="font-bold text-emerald-700 text-lg">{{ approved_leaves }}</span>
           </div>
-          <div class="flex items-center justify-between rounded-xl bg-rose-50 p-3">
-            <span class="text-rose-700">Rejected</span>
-            <span class="font-bold text-rose-700">{{ rejected_leaves }}</span>
+          <div class="flex items-center justify-between rounded-xl bg-rose-50 p-3 border-l-4 border-rose-600">
+            <span class="text-rose-900 font-medium">Rejected</span>
+            <span class="font-bold text-rose-700 text-lg">{{ rejected_leaves }}</span>
           </div>
         </div>
       </div>
 
+      <!-- Recent Attendance -->
       <div class="rounded-2xl bg-white p-6 shadow-lg">
-        <h2 class="text-xl font-semibold">Recent Attendance</h2>
-        <div class="mt-4 space-y-2">
+        <h2 class="text-xl font-semibold text-slate-800 mb-4">
+          <i class="fa-solid fa-clock text-blue-600 mr-2"></i>
+          Recent Attendance
+        </h2>
+        <div class="mt-4 space-y-2 max-h-64 overflow-y-auto">
           {% if records %}
             {% for record in records %}
-              <div class="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
-                <span>{{ record.date }}</span>
-                <span class="font-semibold {% if record.status == 'Present' %}text-emerald-600{% else %}text-rose-600{% endif %}">{{ record.status }}</span>
+              <div class="flex items-center justify-between rounded-lg border border-slate-200 hover:bg-slate-50 px-3 py-2 transition">
+                <span class="text-sm font-medium">{{ record.date }}</span>
+                <span class="font-semibold px-3 py-1 rounded-full text-xs {% if record.status == 'Present' %}text-emerald-700 bg-emerald-100{% else %}text-rose-700 bg-rose-100{% endif %}">{{ record.status }}</span>
               </div>
             {% endfor %}
           {% else %}
-            <p class="text-sm text-slate-500">No attendance records yet.</p>
+            <p class="text-sm text-slate-500 text-center py-4">No attendance records yet.</p>
           {% endif %}
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="rounded-2xl bg-white p-6 shadow-lg">
+        <h2 class="text-xl font-semibold text-slate-800 mb-4">
+          <i class="fa-solid fa-bolt text-blue-600 mr-2"></i>
+          Quick Actions
+        </h2>
+        <div class="space-y-2">
+          <a href="{% url 'edit_profile' %}" class="block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-center">
+            <i class="fa-solid fa-pen-to-square mr-2"></i>
+            Edit Profile
+          </a>
+          <a href="{% url 'change_password' %}" class="block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition text-center">
+            <i class="fa-solid fa-lock mr-2"></i>
+            Change Password
+          </a>
+          <a href="{% url 'apply_leave' %}" class="block bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg transition text-center">
+            <i class="fa-solid fa-calendar-plus mr-2"></i>
+            Apply Leave
+          </a>
         </div>
       </div>
     </div>
