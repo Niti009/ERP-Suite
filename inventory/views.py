@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 import json
 from types import SimpleNamespace
+from datetime import datetime, timedelta
+from django.db.models import Q
 
 from django.utils import timezone
 
@@ -16,6 +18,8 @@ from .models import (
     Product,
     Customer,
     UploadedFile,
+    Notification,
+    ActivityLog,
 )
 
 from .forms import (
@@ -166,6 +170,7 @@ def dashboard(request):
                 employee=request.user,
                 date=today,
                 status="Present",
+                approval_status="Pending",
                 check_in=timezone.now().time()
             )
 
@@ -210,6 +215,19 @@ def dashboard(request):
 
     absent = max(total_employees - present, 0)
 
+    # Feature 1: Pending attendance approvals
+    pending_attendance_approvals = 0
+    if request.user.is_superuser:
+        pending_attendance_approvals = Attendance.objects.filter(
+            approval_status='Pending'
+        ).count()
+
+    # Feature 2: Unread notifications
+    unread_notifications_count = request.user.notifications.filter(is_read=False).count()
+
+    # Feature 6: Inventory summary
+    inventory_summary = get_inventory_summary()
+
     if pending_leaves > 5:
 
         insight = "Multiple leave requests require approval."
@@ -249,6 +267,12 @@ def dashboard(request):
         "present": present,
 
         "absent": absent,
+
+        "pending_attendance_approvals": pending_attendance_approvals,
+
+        "unread_notifications_count": unread_notifications_count,
+
+        "inventory_summary": inventory_summary,
 
     "chart_data": json.dumps({
         "present": present,
@@ -699,3 +723,369 @@ def upload_file(request):
             "uploaded_files": uploaded_files,
         },
     )
+
+
+# ==================== FEATURE 1: ATTENDANCE APPROVAL ====================
+
+@login_required
+def attendance_approvals(request):
+    """Admin view for approving/rejecting pending attendance"""
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('dashboard')
+    
+    # Get all pending attendance records
+    pending_attendance = Attendance.objects.filter(
+        approval_status='Pending'
+    ).select_related('employee').order_by('-date')
+    
+    # Get counts for dashboard
+    total_pending = pending_attendance.count()
+    approved_count = Attendance.objects.filter(approval_status='Approved').count()
+    rejected_count = Attendance.objects.filter(approval_status='Rejected').count()
+    
+    context = {
+        'pending_attendance': pending_attendance,
+        'total_pending': total_pending,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
+    }
+    
+    return render(request, 'attendance_approvals.html', context)
+
+
+@login_required
+@demo_read_only
+def approve_attendance(request, attendance_id):
+    """Approve pending attendance"""
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect('dashboard')
+    
+    attendance = get_object_or_404(Attendance, id=attendance_id)
+    
+    attendance.approval_status = 'Approved'
+    attendance.approved_at = timezone.now()
+    attendance.approved_by = request.user
+    attendance.save()
+    
+    # Create notification for employee
+    Notification.objects.create(
+        user=attendance.employee,
+        notification_type='attendance_approved',
+        title='Attendance Approved',
+        description=f'Your attendance for {attendance.date} has been approved.',
+        related_object_type='attendance',
+        related_object_id=attendance.id,
+        related_link=f'/attendance/'
+    )
+    
+    # Log activity
+    ActivityLog.objects.create(
+        user=request.user,
+        action_type='attendance_approved',
+        object_type='attendance',
+        object_id=attendance.id,
+        description=f'Approved attendance for {attendance.employee.username} on {attendance.date}'
+    )
+    
+    messages.success(request, f"Attendance approved for {attendance.employee.username}")
+    return redirect('attendance_approvals')
+
+
+@login_required
+@demo_read_only
+def reject_attendance(request, attendance_id):
+    """Reject pending attendance"""
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect('dashboard')
+    
+    attendance = get_object_or_404(Attendance, id=attendance_id)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('rejection_reason', '')
+        
+        attendance.approval_status = 'Rejected'
+        attendance.rejection_reason = reason
+        attendance.approved_at = timezone.now()
+        attendance.approved_by = request.user
+        attendance.save()
+        
+        # Create notification for employee
+        Notification.objects.create(
+            user=attendance.employee,
+            notification_type='attendance_rejected',
+            title='Attendance Rejected',
+            description=f'Your attendance for {attendance.date} has been rejected. Reason: {reason}',
+            related_object_type='attendance',
+            related_object_id=attendance.id,
+            related_link=f'/attendance/'
+        )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            user=request.user,
+            action_type='attendance_rejected',
+            object_type='attendance',
+            object_id=attendance.id,
+            description=f'Rejected attendance for {attendance.employee.username} on {attendance.date}. Reason: {reason}'
+        )
+        
+        messages.success(request, f"Attendance rejected for {attendance.employee.username}")
+        return redirect('attendance_approvals')
+    
+    return render(request, 'reject_attendance.html', {'attendance': attendance})
+
+
+# ==================== FEATURE 2: NOTIFICATION CENTER ====================
+
+@login_required
+def notifications_list(request):
+    """Show user's notifications"""
+    notifications = request.user.notifications.all()[:50]
+    unread_count = request.user.notifications.filter(is_read=False).count()
+    
+    context = {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    }
+    
+    return render(request, 'notifications.html', context)
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """Mark single notification as read"""
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification.is_read = True
+    notification.save()
+    
+    # Redirect to related link if available
+    if notification.related_link:
+        return redirect(notification.related_link)
+    
+    return redirect('notifications_list')
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """Mark all notifications as read"""
+    request.user.notifications.filter(is_read=False).update(is_read=True)
+    messages.success(request, "All notifications marked as read")
+    return redirect('notifications_list')
+
+
+# ==================== FEATURE 3: GLOBAL ERP SEARCH ====================
+
+@login_required
+def global_search(request):
+    """Global search across all ERP data"""
+    results = {
+        'employees': [],
+        'products': [],
+        'customers': [],
+        'leaves': [],
+        'attendance': [],
+        'documents': [],
+    }
+    
+    query = request.GET.get('q', '').strip()
+    
+    if query and len(query) >= 2:
+        # Search employees
+        if request.user.is_superuser:
+            results['employees'] = Employee.objects.filter(
+                Q(name__icontains=query) | Q(user__username__icontains=query)
+            )[:10]
+        
+        # Search products
+        results['products'] = Product.objects.filter(
+            name__icontains=query
+        )[:10]
+        
+        # Search customers
+        if request.user.is_superuser:
+            results['customers'] = Customer.objects.filter(
+                Q(name__icontains=query) | Q(email__icontains=query)
+            )[:10]
+        
+        # Search leave applications
+        if request.user.is_superuser:
+            results['leaves'] = LeaveApplication.objects.filter(
+                Q(employee__username__icontains=query)
+            )[:10]
+        else:
+            results['leaves'] = LeaveApplication.objects.filter(
+                employee=request.user
+            )[:10]
+        
+        # Search attendance
+        if request.user.is_superuser:
+            results['attendance'] = Attendance.objects.filter(
+                Q(employee__username__icontains=query)
+            )[:10]
+        else:
+            results['attendance'] = Attendance.objects.filter(
+                employee=request.user
+            )[:10]
+        
+        # Search uploaded files
+        results['documents'] = UploadedFile.objects.filter(
+            file__icontains=query
+        )[:10]
+    
+    context = {
+        'query': query,
+        'results': results,
+        'has_results': any(results.values()),
+    }
+    
+    return render(request, 'global_search.html', context)
+
+
+# ==================== FEATURE 4: ACTIVITY LOG ====================
+
+@login_required
+def activity_log(request):
+    """View activity log - admins see all, employees see their own"""
+    if request.user.is_superuser:
+        logs = ActivityLog.objects.all()
+    else:
+        logs = ActivityLog.objects.filter(user=request.user)
+    
+    # Filter by action type if provided
+    action_type = request.GET.get('action_type', '')
+    if action_type:
+        logs = logs.filter(action_type=action_type)
+    
+    # Filter by date if provided
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        try:
+            date_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            logs = logs.filter(timestamp__date__gte=date_obj)
+        except:
+            pass
+    
+    logs = logs.order_by('-timestamp')[:200]
+    
+    context = {
+        'logs': logs,
+        'action_types': ActivityLog.ACTION_TYPES,
+        'selected_action': action_type,
+        'selected_date': date_from,
+    }
+    
+    return render(request, 'activity_log.html', context)
+
+
+# ==================== FEATURE 5: LEAVE CALENDAR ====================
+
+@login_required
+def leave_calendar(request):
+    """Show leave calendar - organization-wide for admins, personal for employees"""
+    year = int(request.GET.get('year', timezone.now().year))
+    month = int(request.GET.get('month', timezone.now().month))
+    
+    # Get approved leaves for the month
+    start_date = datetime(year, month, 1).date()
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1).date() - timedelta(days=1)
+    else:
+        end_date = datetime(year, month + 1, 1).date() - timedelta(days=1)
+    
+    if request.user.is_superuser:
+        leaves = LeaveApplication.objects.filter(
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        ).select_related('employee')
+    else:
+        leaves = LeaveApplication.objects.filter(
+            employee=request.user,
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        )
+    
+    # Get today's leaves
+    today = timezone.now().date()
+    today_leaves = LeaveApplication.objects.filter(
+        status='Approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).select_related('employee') if request.user.is_superuser else LeaveApplication.objects.filter(
+        employee=request.user,
+        status='Approved',
+        start_date__lte=today,
+        end_date__gte=today
+    )
+    
+    # Get upcoming leaves (next 7 days)
+    week_later = today + timedelta(days=7)
+    upcoming_leaves = LeaveApplication.objects.filter(
+        status='Approved',
+        start_date__gte=today,
+        start_date__lte=week_later
+    ).select_related('employee').order_by('start_date') if request.user.is_superuser else []
+    
+    # Get pending requests
+    pending_count = LeaveApplication.objects.filter(status='Pending').count()
+    
+    context = {
+        'year': year,
+        'month': month,
+        'leaves': leaves,
+        'today_leaves': today_leaves,
+        'upcoming_leaves': upcoming_leaves,
+        'pending_count': pending_count,
+        'month_name': datetime(year, month, 1).strftime('%B %Y'),
+    }
+    
+    return render(request, 'leave_calendar.html', context)
+
+
+# ==================== FEATURE 6: INVENTORY INTELLIGENCE ====================
+
+def get_inventory_summary():
+    """Helper function to get inventory health summary"""
+    products = Product.objects.all()
+    
+    healthy = 0
+    low_stock = 0
+    out_of_stock = 0
+    
+    for product in products:
+        status = product.get_stock_status()
+        if status == 'healthy':
+            healthy += 1
+        elif status == 'low_stock':
+            low_stock += 1
+        else:
+            out_of_stock += 1
+    
+    return {
+        'healthy': healthy,
+        'low_stock': low_stock,
+        'out_of_stock': out_of_stock,
+        'total': products.count(),
+    }
+
+
+@login_required
+def inventory_dashboard(request):
+    """Inventory intelligence and status page"""
+    products = Product.objects.all().order_by('name')
+    inventory_summary = get_inventory_summary()
+    
+    # Low stock products
+    low_stock_products = [p for p in products if p.get_stock_status() == 'low_stock']
+    out_of_stock_products = [p for p in products if p.get_stock_status() == 'out_of_stock']
+    
+    context = {
+        'products': products,
+        'inventory_summary': inventory_summary,
+        'low_stock_products': low_stock_products,
+        'out_of_stock_products': out_of_stock_products,
+    }
+    
+    return render(request, 'inventory_dashboard.html', context)

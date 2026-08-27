@@ -30,14 +30,30 @@ urlpatterns = [
     path('leave/view/', views.view_leaves, name='view_leaves'),
     path('leave/approve/<int:leave_id>/', views.approve_leave, name='approve_leave'),
     path('leave/reject/<int:leave_id>/', views.reject_leave, name='reject_leave'),
+    path('leave/calendar/', views.leave_calendar, name='leave_calendar'),
 
     path('attendance/', views.attendance_history, name='attendance_history'),
+    path('attendance/approvals/', views.attendance_approvals, name='attendance_approvals'),
+    path('attendance/approve/<int:attendance_id>/', views.approve_attendance, name='approve_attendance'),
+    path('attendance/reject/<int:attendance_id>/', views.reject_attendance, name='reject_attendance'),
 
     path('products/', views.product_list, name='product_list'),
     path('products/add/', views.add_product, name='add_product'),
+    path('inventory/', views.inventory_dashboard, name='inventory_dashboard'),
 
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/add/', views.add_customer, name='add_customer'),
 
     path('upload/', views.upload_file, name='upload_file'),
+
+    # Feature 2: Notifications
+    path('notifications/', views.notifications_list, name='notifications_list'),
+    path('notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
+
+    # Feature 3: Search
+    path('search/', views.global_search, name='global_search'),
+
+    # Feature 4: Activity Log
+    path('activity-log/', views.activity_log, name='activity_log'),
 ]
