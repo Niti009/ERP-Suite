@@ -1,15 +1,50 @@
 import os
 from pathlib import Path
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # Base directory of your project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key")
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+def _env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = ["*"]
+
+def _env_list(name):
+    return [value.strip() for value in os.environ.get(name, "").split(",") if value.strip()]
+
+
+IS_RENDER = _env_bool("RENDER")
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "production" if IS_RENDER else "development").lower()
+DEBUG = _env_bool("DEBUG", default=(DJANGO_ENV == "development" and not IS_RENDER))
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-development-key-not-for-production"
+    else:
+        raise ImproperlyConfigured("Set SECRET_KEY in the production environment.")
+
+render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS")
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"] if DEBUG else ([render_hostname] if render_hostname else [])
+if not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("Set ALLOWED_HOSTS to the Render hostname(s).")
+
+CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS")
+if not DEBUG and render_hostname:
+    render_origin = f"https://{render_hostname}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", True)
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,6 +62,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -57,12 +93,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'erp_system.wsgi.application'
 
 # Database
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        ssl_require=not DEBUG,
+    )
+} if DATABASE_URL else {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+if not DEBUG and not DATABASE_URL:
+    raise ImproperlyConfigured("Set DATABASE_URL to a persistent production database.")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -87,9 +132,14 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+WHITENOISE_MANIFEST_STRICT = False
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -102,24 +152,37 @@ LOGOUT_REDIRECT_URL = '/login/'
 DEMO_LOGIN_USERNAME = 'demo.erp'
 DEMO_LOGIN_PASSWORD = 'Demo@2026!'
 
-import os
-
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", "").strip() or BASE_DIR / "media")
 
-# Email Configuration
-# For local development, use console backend to print emails to terminal
-# For production, use environment variables for SMTP credentials
 if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
-    # Production email configuration - use environment variables
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+    EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+    EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip()
+    missing_email_settings = [
+        name
+        for name, value in (
+            ("EMAIL_HOST", EMAIL_HOST),
+            ("EMAIL_HOST_USER", EMAIL_HOST_USER),
+            ("EMAIL_HOST_PASSWORD", EMAIL_HOST_PASSWORD),
+            ("DEFAULT_FROM_EMAIL", DEFAULT_FROM_EMAIL),
+        )
+        if not value
+    ]
+    if missing_email_settings:
+        raise ImproperlyConfigured(
+            "Set production email environment variables: " + ", ".join(missing_email_settings)
+        )
+    if EMAIL_USE_TLS and EMAIL_USE_SSL:
+        raise ImproperlyConfigured("Set only one of EMAIL_USE_TLS or EMAIL_USE_SSL.")
 
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@erpsuite.com')
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@erpsuite.com")
 EMPLOYEE_INVITATION_EXPIRY_HOURS = int(os.environ.get('EMPLOYEE_INVITATION_EXPIRY_HOURS', '72'))
