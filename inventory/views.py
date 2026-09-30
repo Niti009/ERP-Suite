@@ -280,6 +280,15 @@ def _notify_admins(title, description, object_type, object_id, related_link):
         Notification.objects.bulk_create(notifications)
 
 
+def _time_of_day_greeting():
+    hour = timezone.localtime().hour
+    if hour < 12:
+        return "Good morning"
+    if hour < 17:
+        return "Good afternoon"
+    return "Good evening"
+
+
 def get_action_center_items(request):
     items = []
 
@@ -447,6 +456,7 @@ def dashboard(request):
     recent_activity = activity_records.order_by('-timestamp')[:6]
 
     context = {
+        "time_greeting": _time_of_day_greeting(),
         "attendance": attendance,
         "total_employees": total_employees,
         "total_products": total_products,

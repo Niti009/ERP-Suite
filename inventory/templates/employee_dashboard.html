@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}My Workspace{% endblock %}
-{% block page_title %}Good evening, {{ request.user.get_full_name|default:request.user.username }}{% endblock %}
+{% block page_title %}{{ time_greeting }}, {{ request.user.get_full_name|default:request.user.username }}{% endblock %}
 {% block page_subtitle %}Your attendance, leave requests, and account activity at a glance.{% endblock %}
 {% block breadcrumb %}
     <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{% url 'dashboard' %}">Home</a><span aria-hidden="true">/</span><span aria-current="page">Dashboard</span></nav>

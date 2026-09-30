@@ -9,6 +9,7 @@ from django.utils import timezone
 import re
 import tempfile
 from datetime import timedelta
+from unittest.mock import patch
 
 from .models import (
     Attendance,
@@ -70,6 +71,24 @@ class DashboardDataScopeTests(TestCase):
         self.assertEqual(response.context["present"], 1)
         self.assertEqual(response.context["pending_leaves"], 1)
         self.assertEqual(response.context["total_attendance_today"], 1)
+
+
+class DashboardGreetingTests(TestCase):
+    def test_dashboard_greeting_tracks_local_time_for_employee_and_admin(self):
+        user_model = get_user_model()
+        employee = user_model.objects.create_user(username="greeting.employee", password="GreetingPass!2026")
+        admin = user_model.objects.create_superuser(
+            username="greeting.admin", email="greeting.admin@example.com", password="GreetingAdmin!2026"
+        )
+
+        for user in (employee, admin):
+            self.client.force_login(user)
+            for hour, expected in ((8, "Good morning"), (13, "Good afternoon"), (19, "Good evening")):
+                with patch("inventory.views.timezone.localtime") as localtime:
+                    localtime.return_value.hour = hour
+                    response = self.client.get(reverse("dashboard"))
+                self.assertEqual(response.context["time_greeting"], expected)
+                self.assertContains(response, expected)
 
 
 class PublicSignupAccessTests(TestCase):
