@@ -145,34 +145,24 @@ DEMO_LOGIN_PASSWORD = 'Demo@2026!'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", "").strip() or BASE_DIR / "media")
 
-if DEBUG:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-else:
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-    EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
-    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
-    EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
-    EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
-    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
-    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
-    DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip()
-    missing_email_settings = [
-        name
-        for name, value in (
-            ("EMAIL_HOST", EMAIL_HOST),
-            ("EMAIL_HOST_USER", EMAIL_HOST_USER),
-            ("EMAIL_HOST_PASSWORD", EMAIL_HOST_PASSWORD),
-            ("DEFAULT_FROM_EMAIL", DEFAULT_FROM_EMAIL),
-        )
-        if not value
-    ]
-    if missing_email_settings:
-        raise ImproperlyConfigured(
-            "Set production email environment variables: " + ", ".join(missing_email_settings)
-        )
-    if EMAIL_USE_TLS and EMAIL_USE_SSL:
-        raise ImproperlyConfigured("Set only one of EMAIL_USE_TLS or EMAIL_USE_SSL.")
-
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip() or "webmaster@localhost"
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@erpsuite.com")
+
+smtp_is_configured = all((
+    EMAIL_HOST,
+    EMAIL_HOST_USER,
+    EMAIL_HOST_PASSWORD,
+    os.environ.get("DEFAULT_FROM_EMAIL", "").strip(),
+)) and not (EMAIL_USE_TLS and EMAIL_USE_SSL)
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if smtp_is_configured
+    else "django.core.mail.backends.console.EmailBackend"
+)
 EMPLOYEE_INVITATION_EXPIRY_HOURS = int(os.environ.get('EMPLOYEE_INVITATION_EXPIRY_HOURS', '72'))
