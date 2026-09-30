@@ -1,263 +1,148 @@
 {% extends "base.html" %}
 
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Operational Dashboard{% endblock %}
+{% block page_subtitle %}Live visibility into workforce activity, approvals, stock health, and operational priorities.{% endblock %}
+
 {% block content %}
-
-<div class="space-y-8">
-
-    <!-- Hero Section -->
-
-    <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-700 rounded-3xl shadow-xl p-10 text-white">
-
-        <div class="flex flex-col lg:flex-row items-center justify-between">
-
+<div class="card-grid stats-grid">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
             <div>
-
-                <h1 class="text-4xl font-bold">
-
-                    ERP Suite Dashboard
-
-                </h1>
-
-                <p class="mt-3 text-lg">
-
-                    Welcome back,
-
-                    <span class="font-semibold">
-
-                        {{ request.user.username }}
-
-                    </span>
-
-                </p>
-
-                <div class="mt-6 inline-flex items-center px-5 py-2 rounded-full bg-white/20">
-
-                    <i class="fa-solid fa-circle-info mr-2"></i>
-
-                    {{ insight }}
-
-                </div>
-
+                <div class="metric-label">Employees</div>
+                <div class="metric-value">{{ total_employees }}</div>
             </div>
-
-            <div class="hidden lg:flex">
-
-                <div class="w-32 h-32 rounded-full bg-white/10 flex items-center justify-center">
-
-                    <i class="fa-solid fa-chart-line text-6xl"></i>
-
-                </div>
-
+            <div class="metric-icon" style="background:#dbeafe; color:#1d4ed8;"><i class="fa-solid fa-users"></i></div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Pending Leave</div>
+                <div class="metric-value">{{ pending_leaves }}</div>
             </div>
+            <div class="metric-icon" style="background:#fef3c7; color:#a16207;"><i class="fa-solid fa-calendar-days"></i></div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Attendance</div>
+                <div class="metric-value">{{ total_attendance_today }}</div>
+            </div>
+            <div class="metric-icon" style="background:#dcfce7; color:#166534;"><i class="fa-solid fa-user-check"></i></div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Low Stock</div>
+                <div class="metric-value">{{ inventory_summary.low_stock|default:0 }}</div>
+            </div>
+            <div class="metric-icon" style="background:#fee2e2; color:#b91c1c;"><i class="fa-solid fa-boxes-stacked"></i></div>
+        </div>
+    </div>
+</div>
 
+<div class="card-grid" style="grid-template-columns: 1.5fr .9fr; margin-top: 24px;">
+    <div class="card">
+        <div class="action-item-header" style="margin-bottom: 16px;">
+            <div>
+                <div class="eyebrow">Action Center</div>
+                <h3 style="margin: 6px 0 0; font-size:1.2rem;">Operational attention layer</h3>
+            </div>
+            <span class="status-badge badge-warning"><i class="fa-solid fa-bolt"></i> {{ action_center_items|length }} items</span>
         </div>
 
+        {% if action_center_items %}
+            <div class="action-list">
+                {% for item in action_center_items %}
+                    <div class="action-item">
+                        <div class="action-item-header">
+                            <div>
+                                <div class="eyebrow">{{ item.category }}</div>
+                                <strong>{{ item.title }}</strong>
+                            </div>
+                            <span class="status-badge badge-neutral">{{ item.timestamp }}</span>
+                        </div>
+                        <div style="margin-top: 8px; font-weight: 700; color: var(--text);">{{ item.entity }}</div>
+                        <div style="margin-top: 4px; color: var(--muted);">{{ item.detail }}</div>
+                        {% if item.url %}
+                            <a href="{{ item.url }}" class="btn btn-primary" style="margin-top: 12px; padding: 8px 12px; font-size:.76rem;">{{ item.link_label }}</a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">No action items right now. The operation is in a healthy state.</div>
+        {% endif %}
     </div>
 
-    <!-- Statistics -->
-
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-
-        <!-- Employees -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-7 card">
-
-            <div class="flex justify-between items-center">
-
-                <div>
-
-                    <p class="text-gray-500">Employees</p>
-
-                    <h2 class="text-5xl font-bold text-blue-600 mt-2">
-
-                        {{ total_employees }}
-
-                    </h2>
-
-                </div>
-
-                <div class="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
-
-                    <i class="fa-solid fa-users text-blue-600 text-3xl"></i>
-
-                </div>
-
+    <div class="card">
+        <div class="eyebrow">Quick overview</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Operational signal</h3>
+        <div class="chip" style="margin-bottom:12px;">{{ insight }}</div>
+        <div class="action-list">
+            <div class="action-item">
+                <div class="eyebrow">Leave</div>
+                <div style="font-weight:700; margin-top: 4px;">{{ pending_leaves }} pending</div>
             </div>
-
-        </div>
-
-        <!-- Products -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-7 card">
-
-            <div class="flex justify-between items-center">
-
-                <div>
-
-                    <p class="text-gray-500">Products</p>
-
-                    <h2 class="text-5xl font-bold text-orange-500 mt-2">
-
-                        {{ total_products }}
-
-                    </h2>
-
-                </div>
-
-                <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center">
-
-                    <i class="fa-solid fa-boxes-stacked text-orange-500 text-3xl"></i>
-
-                </div>
-
+            <div class="action-item">
+                <div class="eyebrow">Attendance approval</div>
+                <div style="font-weight:700; margin-top: 4px;">{{ pending_attendance_approvals }} awaiting review</div>
             </div>
-
-        </div>
-
-        <!-- Customers -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-7 card">
-
-            <div class="flex justify-between items-center">
-
-                <div>
-
-                    <p class="text-gray-500">Customers</p>
-
-                    <h2 class="text-5xl font-bold text-pink-500 mt-2">
-
-                        {{ total_customers }}
-
-                    </h2>
-
-                </div>
-
-                <div class="w-16 h-16 rounded-2xl bg-pink-100 flex items-center justify-center">
-
-                    <i class="fa-solid fa-user-group text-pink-500 text-3xl"></i>
-
-                </div>
-
+            <div class="action-item">
+                <div class="eyebrow">Notifications</div>
+                <div style="font-weight:700; margin-top: 4px;">{{ unread_notifications_count }} unread</div>
             </div>
-
         </div>
+    </div>
+</div>
 
-        <!-- Leave Requests -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-7 card">
-
-            <div class="flex justify-between items-center">
-
-                <div>
-
-                    <p class="text-gray-500">Leave Requests</p>
-
-                    <h2 class="text-5xl font-bold text-purple-600 mt-2">
-
-                        {{ total_leaves }}
-
-                    </h2>
-
-                </div>
-
-                <div class="w-16 h-16 rounded-2xl bg-purple-100 flex items-center justify-center">
-
-                    <i class="fa-solid fa-file-signature text-purple-600 text-3xl"></i>
-
-                </div>
-
+<div class="card-grid" style="grid-template-columns: 1.2fr .8fr; margin-top: 24px;">
+    <div class="card">
+        <div class="eyebrow">Recent activity</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Latest leave requests</h3>
+        {% if recent_leaves %}
+            <div class="action-list">
+                {% for leave in recent_leaves %}
+                    <div class="action-item">
+                        <div class="action-item-header">
+                            <div>
+                                <div class="eyebrow">{{ leave.employee.username }}</div>
+                                <strong>{{ leave.leave_type }}</strong>
+                            </div>
+                            <span class="status-badge {% if leave.status == 'Approved' %}badge-success{% elif leave.status == 'Rejected' %}badge-danger{% else %}badge-warning{% endif %}">{{ leave.status }}</span>
+                        </div>
+                        <div style="color: var(--muted); margin-top: 6px;">{{ leave.start_date }} to {{ leave.end_date }}</div>
+                    </div>
+                {% endfor %}
             </div>
-
-        </div>
-
-        <!-- Pending Leaves -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-7 card">
-
-            <div class="flex justify-between items-center">
-
-                <div>
-
-                    <p class="text-gray-500">Pending Leaves</p>
-
-                    <h2 class="text-5xl font-bold text-yellow-500 mt-2">
-
-                        {{ pending_leaves }}
-
-                    </h2>
-
-                </div>
-
-                <div class="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center">
-
-                    <i class="fa-solid fa-hourglass-half text-yellow-500 text-3xl"></i>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- Today's Attendance -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-7 card">
-
-            <div class="flex justify-between items-center">
-
-                <div>
-
-                    <p class="text-gray-500">Today's Attendance</p>
-
-                    <h2 class="text-5xl font-bold text-green-600 mt-2">
-
-                        {{ total_attendance_today }}
-
-                    </h2>
-
-                </div>
-
-                <div class="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center">
-
-                    <i class="fa-solid fa-user-check text-green-600 text-3xl"></i>
-
-                </div>
-
-            </div>
-
-        </div>
-
+        {% else %}
+            <div class="empty-state">No recent leave activity.</div>
+        {% endif %}
     </div>
 
-    <!-- Middle Section -->
-
-    <div class="grid lg:grid-cols-3 gap-6">
-                <!-- Attendance Card -->
-
-        <div class="bg-white rounded-3xl shadow-lg p-8 card">
-
-            <div class="flex justify-between items-center mb-6">
-
-                <h2 class="text-2xl font-bold">
-                    Today's Attendance
-                </h2>
-
-                <i class="fa-solid fa-clock text-blue-600 text-2xl"></i>
-
+    <div class="card">
+        <div class="eyebrow">Key metrics</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Inventory signal</h3>
+        <div class="action-list">
+            <div class="action-item">
+                <div class="eyebrow">Healthy stock</div>
+                <div style="font-weight:700; margin-top: 4px;">{{ inventory_summary.healthy|default:0 }} products</div>
             </div>
-
-            {% if attendance %}
-
-                <div class="space-y-4">
-
-                    <div class="flex justify-between">
-
-                        <span class="text-gray-500">
-                            Status
-                        </span>
-
-                        <span class="font-semibold">
-                            {{ attendance.status }}
-                        </span>
+            <div class="action-item">
+                <div class="eyebrow">Out of stock</div>
+                <div style="font-weight:700; margin-top: 4px;">{{ inventory_summary.out_of_stock|default:0 }} products</div>
+            </div>
+            <div class="action-item">
+                <div class="eyebrow">Total customers</div>
+                <div style="font-weight:700; margin-top: 4px;">{{ total_customers }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
                     </div>
 

@@ -1,241 +1,122 @@
 {% extends "base.html" %}
 
+{% block title %}My Workspace{% endblock %}
+{% block page_title %}My Workspace{% endblock %}
+{% block page_subtitle %}Personal attendance, leave activity, and work status overview.{% endblock %}
+
 {% block content %}
-
-<div class="space-y-8">
-
-<div class="bg-gradient-to-r from-slate-800 to-slate-700 rounded-3xl p-10 text-white">
-
-<h1 class="text-4xl font-bold">
-
-Welcome, {{ request.user.username }}
-
-</h1>
-
-<p class="mt-3 text-slate-300">
-
-Employee Dashboard
-
-</p>
-
+<div class="card-grid stats-grid">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Attendance</div>
+                <div class="metric-value">{{ attendance.status|default:'Pending' }}</div>
+            </div>
+            <div class="metric-icon" style="background:#dbeafe; color:#1d4ed8;"><i class="fa-solid fa-clock"></i></div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Pending Leave</div>
+                <div class="metric-value">{{ pending_leaves }}</div>
+            </div>
+            <div class="metric-icon" style="background:#fef3c7; color:#a16207;"><i class="fa-solid fa-calendar-days"></i></div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Present Days</div>
+                <div class="metric-value">{{ present|default:0 }}</div>
+            </div>
+            <div class="metric-icon" style="background:#dcfce7; color:#166534;"><i class="fa-solid fa-user-check"></i></div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div>
+                <div class="metric-label">Status</div>
+                <div class="metric-value" style="font-size:1.2rem;">{{ current_user_status }}</div>
+            </div>
+            <div class="metric-icon" style="background:#f1f5f9; color:#0f172a;"><i class="fa-solid fa-shield-check"></i></div>
+        </div>
+    </div>
 </div>
 
-<div class="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+<div class="card-grid" style="grid-template-columns: 1.2fr .8fr; margin-top: 24px;">
+    <div class="card">
+        <div class="eyebrow">Today</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Attendance checklist</h3>
+        {% if attendance %}
+            <div class="action-list">
+                <div class="action-item">
+                    <div class="eyebrow">Status</div>
+                    <div style="font-weight:700; margin-top: 6px;">{{ attendance.status }}</div>
+                </div>
+                <div class="action-item">
+                    <div class="eyebrow">Check-in</div>
+                    <div style="font-weight:700; margin-top: 6px;">{{ attendance.check_in|default:'Not clocked in yet' }}</div>
+                </div>
+                <div class="action-item">
+                    <div class="eyebrow">Check-out</div>
+                    <div style="font-weight:700; margin-top: 6px;">{{ attendance.check_out|default:'Not clocked out yet' }}</div>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">Attendance has not been marked for today.</div>
+        {% endif %}
+        <form method="POST" style="margin-top: 14px;">{% csrf_token %}
+            <button type="submit" class="btn btn-primary">{% if attendance and attendance.check_out %}Attendance completed{% elif attendance %}Check Out{% else %}Check In{% endif %}</button>
+        </form>
+    </div>
 
-<div class="bg-white rounded-3xl shadow-lg p-6 card">
-
-<div class="flex items-start justify-between">
-
-<div>
-
-<p class="text-gray-500 text-sm">Attendance</p>
-
-<h2 class="text-3xl font-bold text-blue-600 mt-2">{{ attendance.status|default:"Pending" }}</h2>
-
+    <div class="card">
+        <div class="eyebrow">Action Center</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Your priorities</h3>
+        {% if action_center_items %}
+            <div class="action-list">
+                {% for item in action_center_items %}
+                    <div class="action-item">
+                        <div class="eyebrow">{{ item.category }}</div>
+                        <strong>{{ item.entity }}</strong>
+                        <div style="margin-top:6px; color: var(--muted);">{{ item.detail }}</div>
+                        {% if item.url %}
+                            <a href="{{ item.url }}" class="btn btn-secondary" style="margin-top: 10px; padding: 7px 10px; font-size:.75rem;">{{ item.link_label }}</a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">Everything is on track for your workspace.</div>
+        {% endif %}
+    </div>
 </div>
 
-<div class="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center">
+<div class="card-grid" style="grid-template-columns: 1fr 1fr; margin-top: 24px;">
+    <div class="card">
+        <div class="eyebrow">Leave</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Leave summary</h3>
+        <div class="action-list">
+            <div class="action-item">
+                <div class="eyebrow">Pending</div>
+                <div style="font-weight:700; margin-top: 6px;">{{ pending_leaves }} requests</div>
+            </div>
+            <div class="action-item">
+                <div class="eyebrow">Approved</div>
+                <div style="font-weight:700; margin-top: 6px;">{{ approved|default:0 }} total</div>
+            </div>
+        </div>
+    </div>
 
-<i class="fa-solid fa-user-check text-blue-600 text-2xl"></i>
-
+    <div class="card">
+        <div class="eyebrow">Quick actions</div>
+        <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Workflows</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+            <a href="{% url 'apply_leave' %}" class="btn btn-primary">Apply leave</a>
+            <a href="{% url 'attendance_history' %}" class="btn btn-secondary">Attendance history</a>
+            <a href="{% url 'employee_profile' %}" class="btn btn-secondary">My profile</a>
+        </div>
+    </div>
 </div>
-
-</div>
-
-{% if attendance %}
-
-<p class="mb-2">
-
-<strong>Status:</strong> {{ attendance.status }}
-
-</p>
-
-<p class="mb-2">
-
-<strong>Check In:</strong> {{ attendance.check_in }}
-
-</p>
-
-<p class="mb-4">
-
-<strong>Check Out:</strong>
-
-{% if attendance.check_out %}
-
-{{ attendance.check_out }}
-
-{% else %}
-
---
-
-{% endif %}
-
-</p>
-
-{% else %}
-
-<p class="text-gray-500 mb-4">
-
-Attendance not marked today.
-
-</p>
-
-{% endif %}
-
-<form method="POST">
-
-{% csrf_token %}
-
-<button
-type="submit"
-class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition">
-
-{% if attendance %}
-
-{% if attendance.check_out %}
-
-Attendance Completed
-
-{% else %}
-
-Check Out
-
-{% endif %}
-
-{% else %}
-
-Check In
-
-{% endif %}
-
-</button>
-
-</form>
-
-</div>
-
-<div class="bg-white rounded-3xl shadow-lg p-6 card">
-
-<div class="flex items-start justify-between">
-
-<div>
-
-<p class="text-gray-500 text-sm">Leave Status</p>
-
-<h2 class="text-3xl font-bold text-yellow-600 mt-2">{{ pending_leaves }}</h2>
-
-</div>
-
-<div class="w-14 h-14 rounded-2xl bg-yellow-100 flex items-center justify-center">
-
-<i class="fa-solid fa-hourglass-half text-yellow-600 text-2xl"></i>
-
-</div>
-
-</div>
-
-<p class="mt-4 text-gray-600">Pending Request(s)</p>
-
-</div>
-
-<div class="bg-white rounded-3xl shadow-lg p-6 card">
-
-<div class="flex items-start justify-between">
-
-<div>
-
-<p class="text-gray-500 text-sm">Present Days</p>
-
-<h2 class="text-3xl font-bold text-emerald-600 mt-2">{{ present|default:0 }}</h2>
-
-</div>
-
-<div class="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
-
-<i class="fa-solid fa-calendar-check text-emerald-600 text-2xl"></i>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="bg-white rounded-3xl shadow-lg p-6 card">
-
-<div class="flex items-start justify-between">
-
-<div>
-
-<p class="text-gray-500 text-sm">System Insight</p>
-
-<h2 class="text-2xl font-bold text-slate-700 mt-2">{{ insight }}</h2>
-
-</div>
-
-<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-
-<i class="fa-solid fa-lightbulb text-slate-700 text-2xl"></i>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="grid md:grid-cols-2 gap-6">
-
-<div class="bg-white rounded-3xl shadow-lg p-6 card">
-
-<h2 class="text-xl font-bold mb-4">Today’s Attendance</h2>
-
-<div class="space-y-3">
-
-<div class="bg-slate-100 rounded-lg p-3">
-
-{{ insight }}
-
-</div>
-
-<div class="bg-slate-100 rounded-lg p-3">
-
-Attendance records are updated.
-
-</div>
-
-<div class="bg-slate-100 rounded-lg p-3">
-
-Documents and leave records are available.
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="grid md:grid-cols-2 gap-6">
-
-<a href="{% url 'apply_leave' %}"
-
-class="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl p-8 text-center text-xl font-semibold transition">
-
-Apply Leave
-
-</a>
-
-<a href="{% url 'attendance_history' %}"
-
-class="bg-slate-800 hover:bg-slate-700 text-white rounded-2xl p-8 text-center text-xl font-semibold transition">
-
-Attendance History
-
-</a>
-
-</div>
-
-</div>
-
 {% endblock %}

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ employee.name }}{% endblock %}
+{% block page_title %}Employee Profile{% endblock %}
+{% block page_subtitle %}{{ employee.employee_id|default:'Employee record' }}{% endblock %}
+{% block header_actions %}
+    {% if request.user.is_superuser %}
+        <a href="{% url 'employee_edit' employee_id=employee.pk %}" class="btn btn-secondary"><i class="fa-solid fa-pen-to-square"></i> Edit</a>
+        <a href="{% url 'toggle_employee_status' employee_id=employee.pk %}" class="btn {% if employee.user.is_active %}btn-danger{% else %}btn-primary{% endif %}">{% if employee.user.is_active %}<i class="fa-solid fa-user-slash"></i> Deactivate{% else %}<i class="fa-solid fa-user-check"></i> Activate{% endif %}</a>
+    {% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+    <div class="breadcrumb"><span>Home</span><span>/</span><span>People</span><span>/</span><span>Employees</span><span>/</span><span>{{ employee.name }}</span></div>
+{% endblock %}
+
+{% block content %}
+    <div class="card" style="padding: 22px;">
+        <div class="summary-grid">
+            <div>
+                {% if employee.profile_photo %}
+                    <img class="profile-photo" src="{{ employee.profile_photo.url }}" alt="{{ employee.name }}" />
+                {% else %}
+                    <div class="profile-photo" style="font-size: 2.4rem; color: #64748b;">{{ employee.name|first|upper }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+                    <h2 style="margin:0; font-size:2rem;">{{ employee.name }}</h2>
+                    {% if employee.user.is_active %}
+                        <span class="status-badge badge-success">Active</span>
+                    {% else %}
+                        <span class="status-badge badge-neutral">Inactive</span>
+                    {% endif %}
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: repeat(2, minmax(0,1fr)); margin-top: 16px;">
+                    <div class="field-group"><label>Employee ID</label><div class="chip">{{ employee.employee_id|default:'—' }}</div></div>
+                    <div class="field-group"><label>Designation</label><div class="chip">{{ employee.position|default:'Not assigned' }}</div></div>
+                    <div class="field-group"><label>Department</label><div class="chip">{{ employee.department.name|default:'Unassigned' }}</div></div>
+                    <div class="field-group"><label>Location</label><div class="chip">{{ employee.location|default:'Not specified' }}</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-grid" style="grid-template-columns: repeat(2, minmax(0,1fr)); margin-top: 22px;">
+        <div class="card">
+            <h3 class="section-title">Overview</h3>
+            <p style="margin:0 0 12px; color: var(--muted);">{{ employee.bio|default:'No biography added for this employee yet.' }}</p>
+            <div class="field-group"><label>Phone</label><div class="chip">{{ employee.phone|default:'No phone number on record' }}</div></div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">Employment</h3>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="field-group"><label>Joining Date</label><div class="chip">{{ employee.joining_date }}</div></div>
+                <div class="field-group"><label>Status</label><div class="chip">{{ status_label }}</div></div>
+                <div class="field-group"><label>Department</label><div class="chip">{{ employee.department.name|default:'Unassigned' }}</div></div>
+                <div class="field-group"><label>Designation</label><div class="chip">{{ employee.position|default:'Not assigned' }}</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">Attendance</h3>
+            {% if attendance_records %}
+                <div class="action-list">
+                    {% for record in attendance_records|slice:':5' %}
+                        <div class="action-item">
+                            <div class="action-item-header">
+                                <div>
+                                    <div class="eyebrow">{{ record.date }}</div>
+                                    <strong>{{ record.status }}</strong>
+                                </div>
+                                <span class="status-badge {% if record.approval_status == 'Approved' %}badge-success{% elif record.approval_status == 'Rejected' %}badge-danger{% else %}badge-warning{% endif %}">{{ record.approval_status }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state" style="padding: 24px;">No attendance history recorded yet.</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">Leave</h3>
+            {% if leave_records %}
+                <div class="action-list">
+                    {% for leave in leave_records %}
+                        <div class="action-item">
+                            <div class="action-item-header">
+                                <div>
+                                    <div class="eyebrow">{{ leave.leave_type }}</div>
+                                    <strong>{{ leave.start_date }} to {{ leave.end_date }}</strong>
+                                </div>
+                                <span class="status-badge {% if leave.status == 'Approved' %}badge-success{% elif leave.status == 'Rejected' %}badge-danger{% else %}badge-warning{% endif %}">{{ leave.status }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state" style="padding: 24px;">No leave records found.</div>
+            {% endif %}
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+            <h3 class="section-title">Account</h3>
+            <div class="form-grid" style="grid-template-columns: repeat(3, minmax(0,1fr));">
+                <div class="field-group"><label>Username</label><div class="chip">{{ employee.user.username }}</div></div>
+                <div class="field-group"><label>Email</label><div class="chip">{{ employee.user.email|default:'No email' }}</div></div>
+                <div class="field-group"><label>Account Status</label><div class="chip">{{ status_label }}</div></div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

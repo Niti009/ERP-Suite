@@ -4,6 +4,8 @@ from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
 
+from .models import Department, Employee
+
 
 class EmployeeProfileTests(TestCase):
     def test_profile_page_creates_missing_employee_profile(self):
@@ -92,3 +94,89 @@ class DemoLoginTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse("dashboard"))
+
+
+class EmployeeManagementTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(
+            username="adminuser",
+            email="admin@example.com",
+            password="StrongPass123!",
+        )
+        self.department = Department.objects.create(name="Engineering")
+
+    def test_admin_can_create_employee_from_enterprise_ui(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("employee_create"),
+            {
+                "first_name": "Aisha",
+                "last_name": "Patel",
+                "username": "aisha.patel",
+                "email": "aisha@company.com",
+                "password1": "StrongPass123!",
+                "password2": "StrongPass123!",
+                "phone": "+1 555 111 0000",
+                "date_of_birth": "1995-02-15",
+                "gender": "Female",
+                "address": "42 Market Street",
+                "location": "New York",
+                "employee_id": "EMP-101",
+                "department": str(self.department.pk),
+                "position": "Senior Engineer",
+                "joining_date": "2024-01-10",
+                "employment_status": "Active",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(get_user_model().objects.filter(username="aisha.patel").exists())
+        self.assertTrue(Employee.objects.filter(employee_id="EMP-101").exists())
+
+    def test_duplicate_employee_credentials_are_rejected(self):
+        self.client.force_login(self.admin)
+        get_user_model().objects.create_user(
+            username="existing.user",
+            email="existing@example.com",
+            password="StrongPass123!",
+        )
+        Employee.objects.create(
+            user=get_user_model().objects.create_user(
+                username="employee-dup",
+                email="dup@example.com",
+                password="StrongPass123!",
+            ),
+            name="Existing Employee",
+            position="Analyst",
+            salary=0,
+            joining_date="2024-01-01",
+            employee_id="EMP-200",
+        )
+
+        response = self.client.post(
+            reverse("employee_create"),
+            {
+                "first_name": "New",
+                "last_name": "User",
+                "username": "existing.user",
+                "email": "existing@example.com",
+                "password1": "StrongPass123!",
+                "password2": "StrongPass123!",
+                "phone": "+1 555 222 0000",
+                "date_of_birth": "1992-05-10",
+                "gender": "Male",
+                "address": "Test Address",
+                "location": "Austin",
+                "employee_id": "EMP-200",
+                "department": str(self.department.pk),
+                "position": "Manager",
+                "joining_date": "2024-02-01",
+                "employment_status": "Active",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already exists")

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block page_subtitle %}Create employee accounts through the ERP workflow without using Django Admin.{% endblock %}
+{% block breadcrumb %}
+    <div class="breadcrumb"><span>Home</span><span>/</span><span>People</span><span>/</span><span>Employees</span><span>/</span><span>{{ title }}</span></div>
+{% endblock %}
+{% block header_actions %}
+    <a href="{% url 'employee_list' %}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back to directory</a>
+{% endblock %}
+
+{% block content %}
+    <div class="card" style="padding: 22px;">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-error" style="margin-bottom: 16px;">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="section-card" style="margin-bottom: 20px;">
+                <h3 class="section-title">Personal Information</h3>
+                <div class="form-grid">
+                    <div class="field-group">
+                        <label for="{{ form.first_name.id_for_label }}">First Name</label>
+                        {{ form.first_name }}
+                        {% for error in form.first_name.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                        {{ form.last_name }}
+                        {% for error in form.last_name.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.profile_photo.id_for_label }}">Profile Photo</label>
+                        {{ form.profile_photo }}
+                        {% for error in form.profile_photo.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.date_of_birth.id_for_label }}">Date of Birth</label>
+                        {{ form.date_of_birth }}
+                        {% for error in form.date_of_birth.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.gender.id_for_label }}">Gender</label>
+                        {{ form.gender }}
+                        {% for error in form.gender.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.phone.id_for_label }}">Phone</label>
+                        {{ form.phone }}
+                        {% for error in form.phone.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group" style="grid-column: 1 / -1;">
+                        <label for="{{ form.address.id_for_label }}">Address</label>
+                        {{ form.address }}
+                        {% for error in form.address.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.location.id_for_label }}">Location</label>
+                        {{ form.location }}
+                        {% for error in form.location.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card" style="margin-bottom: 20px;">
+                <h3 class="section-title">Employment Information</h3>
+                <div class="form-grid">
+                    <div class="field-group">
+                        <label for="{{ form.employee_id.id_for_label }}">Employee ID</label>
+                        {{ form.employee_id }}
+                        {% for error in form.employee_id.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.department.id_for_label }}">Department</label>
+                        {{ form.department }}
+                        {% for error in form.department.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.position.id_for_label }}">Designation</label>
+                        {{ form.position }}
+                        {% for error in form.position.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.joining_date.id_for_label }}">Joining Date</label>
+                        {{ form.joining_date }}
+                        {% for error in form.joining_date.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.employment_status.id_for_label }}">Employment Status</label>
+                        {{ form.employment_status }}
+                        {% for error in form.employment_status.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3 class="section-title">Account Information</h3>
+                <div class="form-grid">
+                    <div class="field-group">
+                        <label for="{{ form.username.id_for_label }}">Username</label>
+                        {{ form.username }}
+                        {% for error in form.username.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.email.id_for_label }}">Email</label>
+                        {{ form.email }}
+                        {% for error in form.email.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.password1.id_for_label }}">Initial Password</label>
+                        {{ form.password1 }}
+                        {% for error in form.password1.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group">
+                        <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                        {{ form.password2 }}
+                        {% for error in form.password2.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="field-group" style="display:flex; align-items:center; gap:12px; padding-top:16px;">
+                        <label for="{{ form.is_active.id_for_label }}" style="display:flex; align-items:center; gap:10px; font-weight:600; color: var(--text);">
+                            {{ form.is_active }}
+                            Account active
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top: 22px;">
+                <a href="{% url 'employee_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

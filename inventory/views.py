@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.conf import settings
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
@@ -8,10 +9,12 @@ import json
 from types import SimpleNamespace
 from datetime import datetime, timedelta
 from django.db.models import Q
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from django.utils import timezone
 
 from .models import (
+    Department,
     Employee,
     Attendance,
     LeaveApplication,
@@ -30,6 +33,7 @@ from .forms import (
     UserProfileForm,
     EmployeeProfileForm,
     CustomPasswordChangeForm,
+    EmployeeCreateForm,
 )
 from .permissions import demo_read_only, is_demo_user
 
@@ -145,6 +149,82 @@ def signup_view(request):
     return render(request, "signup.html", {"form": form})
 
 
+def _employee_status_label(user):
+    return "Active" if getattr(user, "is_active", True) else "Inactive"
+
+
+def get_action_center_items(request):
+    items = []
+
+    if request.user.is_superuser:
+        pending_leaves = LeaveApplication.objects.filter(status='Pending').select_related('employee')[:5]
+        for leave in pending_leaves:
+            items.append({
+                'category': 'Leave',
+                'title': 'Leave approval required',
+                'entity': f"{leave.employee.username} — {leave.leave_type}",
+                'detail': f"{leave.start_date} to {leave.end_date} ({leave.reason[:90]})",
+                'url': reverse('view_leaves'),
+                'link_label': 'Review request',
+                'timestamp': leave.start_date,
+            })
+
+        pending_attendance = Attendance.objects.filter(approval_status='Pending').select_related('employee')[:5]
+        for record in pending_attendance:
+            items.append({
+                'category': 'Attendance',
+                'title': 'Attendance review',
+                'entity': f"{record.employee.username}",
+                'detail': f"Date: {record.date} — status: {record.status}",
+                'url': reverse('attendance_approvals'),
+                'link_label': 'Review attendance',
+                'timestamp': record.date,
+            })
+
+        low_stock_products = []
+        for product in Product.objects.all().order_by('name'):
+            if product.get_stock_status() in ('low_stock', 'out_of_stock'):
+                low_stock_products.append(product)
+        for product in low_stock_products[:5]:
+            items.append({
+                'category': 'Inventory',
+                'title': 'Low stock alert',
+                'entity': product.name,
+                'detail': f"Current quantity: {product.quantity} | Reorder level: {product.reorder_level}",
+                'url': reverse('inventory_dashboard'),
+                'link_label': 'View inventory',
+                'timestamp': timezone.now().date(),
+            })
+
+        incomplete_profiles = Employee.objects.select_related('user').filter(
+            Q(user__first_name='') | Q(user__last_name='') | Q(phone='') | Q(location='')
+        )[:5]
+        for employee in incomplete_profiles:
+            items.append({
+                'category': 'Employees',
+                'title': 'Profile needs attention',
+                'entity': employee.name,
+                'detail': 'Employee profile has missing identity or contact details.',
+                'url': reverse('employee_detail', kwargs={'employee_id': employee.pk}),
+                'link_label': 'Review employee',
+                'timestamp': timezone.now().date(),
+            })
+    else:
+        my_pending_leaves = LeaveApplication.objects.filter(employee=request.user, status='Pending')[:3]
+        for leave in my_pending_leaves:
+            items.append({
+                'category': 'Leave',
+                'title': 'Leave request pending',
+                'entity': leave.leave_type,
+                'detail': f"{leave.start_date} to {leave.end_date}",
+                'url': reverse('view_leaves'),
+                'link_label': 'View request',
+                'timestamp': leave.start_date,
+            })
+
+    return items
+
+
 @login_required
 def dashboard(request):
 
@@ -215,90 +295,56 @@ def dashboard(request):
 
     absent = max(total_employees - present, 0)
 
-    # Feature 1: Pending attendance approvals
     pending_attendance_approvals = 0
     if request.user.is_superuser:
         pending_attendance_approvals = Attendance.objects.filter(
             approval_status='Pending'
         ).count()
 
-    # Feature 2: Unread notifications
     unread_notifications_count = request.user.notifications.filter(is_read=False).count()
-
-    # Feature 6: Inventory summary
     inventory_summary = get_inventory_summary()
 
     if pending_leaves > 5:
-
         insight = "Multiple leave requests require approval."
-
-    elif total_attendance_today < total_employees:
-
+    elif total_attendance_today < max(total_employees, 1):
         insight = "Attendance is lower than expected today."
-
     else:
-
         insight = "Business operations are running normally."
 
     context = {
-
         "attendance": attendance,
-
         "total_employees": total_employees,
-
         "total_products": total_products,
-
         "total_customers": total_customers,
-
         "total_leaves": total_leaves,
-
         "pending_leaves": pending_leaves,
-
         "total_attendance_today": total_attendance_today,
-
         "recent_leaves": recent_leaves,
-
         "approved": approved,
-
         "pending": pending,
-
         "rejected": rejected,
-
         "present": present,
-
         "absent": absent,
-
         "pending_attendance_approvals": pending_attendance_approvals,
-
         "unread_notifications_count": unread_notifications_count,
-
         "inventory_summary": inventory_summary,
-
-    "chart_data": json.dumps({
-        "present": present,
-        "absent": absent,
-        "approved": approved,
-        "pending": pending,
-        "rejected": rejected,
-    }),
-
-    "insight": insight,
-
-}
+        "chart_data": json.dumps({
+            "present": present,
+            "absent": absent,
+            "approved": approved,
+            "pending": pending,
+            "rejected": rejected,
+        }),
+        "insight": insight,
+        "action_center_items": get_action_center_items(request),
+        "current_user_status": _employee_status_label(request.user),
+        "current_employee": Employee.objects.filter(user=request.user).first(),
+    }
 
     if request.user.is_superuser:
+        return render(request, "admin_dashboard.html", context)
 
-        return render(
-            request,
-            "admin_dashboard.html",
-            context,
-        )
-
-    return render(
-        request,
-        "employee_dashboard.html",
-        context,
-    )
+    return render(request, "employee_dashboard.html", context)
 
 
 @login_required
@@ -581,6 +627,163 @@ def change_password_view(request):
         form = CustomPasswordChangeForm(request.user)
     
     return render(request, "change_password.html", {"form": form})
+
+
+@login_required
+def employee_list(request):
+    employees = Employee.objects.select_related('user', 'department').all().order_by('name')
+
+    query = request.GET.get('q', '').strip()
+    department_id = request.GET.get('department', '')
+    status = request.GET.get('status', '')
+    location = request.GET.get('location', '').strip()
+
+    if query:
+        employees = employees.filter(
+            Q(name__icontains=query) |
+            Q(employee_id__icontains=query) |
+            Q(position__icontains=query) |
+            Q(user__username__icontains=query)
+        )
+    if department_id:
+        employees = employees.filter(department_id=department_id)
+    if status:
+        employees = employees.filter(user__is_active=(status == 'Active'))
+    if location:
+        employees = employees.filter(location__icontains=location)
+
+    paginator = Paginator(employees, 12)
+    page_number = request.GET.get('page')
+    try:
+        page_obj = paginator.page(page_number)
+    except (EmptyPage, PageNotAnInteger):
+        page_obj = paginator.page(1)
+
+    departments = Department.objects.all().order_by('name')
+    return render(request, 'employee_list.html', {
+        'employees': page_obj,
+        'departments': departments,
+        'query': query,
+        'selected_department': department_id,
+        'selected_status': status,
+        'selected_location': location,
+    })
+
+
+@login_required
+def employee_detail(request, employee_id):
+    employee = get_object_or_404(Employee.objects.select_related('user', 'department'), pk=employee_id)
+
+    if not request.user.is_superuser and employee.user != request.user:
+        messages.error(request, 'You do not have access to that employee profile.')
+        return redirect('dashboard')
+
+    attendance_records = Attendance.objects.filter(employee=employee.user).order_by('-date')[:10]
+    leave_records = LeaveApplication.objects.filter(employee=employee.user).order_by('-start_date')[:5]
+
+    return render(request, 'employee_detail.html', {
+        'employee': employee,
+        'attendance_records': attendance_records,
+        'leave_records': leave_records,
+        'status_label': _employee_status_label(employee.user),
+    })
+
+
+@login_required
+@demo_read_only
+def employee_create(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can create employees from the ERP.')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = EmployeeCreateForm(request.POST, request.FILES)
+        if form.is_valid():
+            user, employee = form.save()
+            messages.success(request, f'Employee {employee.name} created successfully.')
+            return redirect('employee_detail', employee_id=employee.pk)
+    else:
+        form = EmployeeCreateForm(initial={
+            'employment_status': 'Active',
+            'is_active': True,
+        })
+
+    return render(request, 'employee_form.html', {
+        'form': form,
+        'title': 'Add Employee',
+        'submit_label': 'Create Employee',
+        'is_edit': False,
+    })
+
+
+@login_required
+@demo_read_only
+def employee_edit(request, employee_id):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can edit employee records.')
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee.objects.select_related('user', 'department'), pk=employee_id)
+    if request.method == 'POST':
+        form = EmployeeCreateForm(request.POST, request.FILES, instance=employee)
+        if form.is_valid():
+            employee.user.first_name = form.cleaned_data['first_name'].strip()
+            employee.user.last_name = form.cleaned_data['last_name'].strip()
+            employee.user.email = form.cleaned_data['email'].strip()
+            employee.user.username = form.cleaned_data['username'].strip()
+            employee.user.is_active = form.cleaned_data.get('is_active', True)
+            employee.user.save(update_fields=['first_name', 'last_name', 'email', 'username', 'is_active'])
+
+            employee.name = f"{employee.user.first_name} {employee.user.last_name}".strip() or employee.user.username
+            employee.phone = form.cleaned_data.get('phone', '')
+            employee.position = form.cleaned_data['position']
+            employee.department = form.cleaned_data.get('department')
+            employee.joining_date = form.cleaned_data['joining_date']
+            employee.employee_id = form.cleaned_data['employee_id']
+            employee.location = form.cleaned_data.get('location', '')
+            employee.bio = form.cleaned_data.get('address', employee.bio)
+            if form.cleaned_data.get('profile_photo'):
+                employee.profile_photo = form.cleaned_data['profile_photo']
+            employee.save()
+            messages.success(request, 'Employee details updated successfully.')
+            return redirect('employee_detail', employee_id=employee.pk)
+    else:
+        form = EmployeeCreateForm(instance=employee, initial={
+            'first_name': employee.user.first_name,
+            'last_name': employee.user.last_name,
+            'username': employee.user.username,
+            'email': employee.user.email,
+            'phone': employee.phone,
+            'location': employee.location,
+            'employee_id': employee.employee_id,
+            'department': employee.department,
+            'position': employee.position,
+            'joining_date': employee.joining_date,
+            'employment_status': 'Active' if employee.user.is_active else 'Inactive',
+            'is_active': employee.user.is_active,
+        })
+
+    return render(request, 'employee_form.html', {
+        'form': form,
+        'title': 'Edit Employee',
+        'submit_label': 'Save Changes',
+        'is_edit': True,
+        'employee': employee,
+    })
+
+
+@login_required
+@demo_read_only
+def toggle_employee_status(request, employee_id):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can activate or deactivate employees.')
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee.objects.select_related('user'), pk=employee_id)
+    employee.user.is_active = not employee.user.is_active
+    employee.user.save(update_fields=['is_active'])
+    messages.success(request, f"Employee status updated to {'Active' if employee.user.is_active else 'Inactive'}.")
+    return redirect('employee_detail', employee_id=employee.pk)
 
 
 @login_required

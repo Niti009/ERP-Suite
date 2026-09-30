@@ -1,680 +1,338 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>ERP Suite</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-
-<style>
-
-html{
-scroll-behavior:smooth;
-}
-
-body{
-font-family:Inter,Arial,sans-serif;
-transition:.3s;
-background:#f1f5f9;
-}
-
-.dark{
-background:#0f172a!important;
-color:#f8fafc!important;
-}
-
-.dark aside{
-background:#020617!important;
-}
-
-.dark header{
-background:#1e293b!important;
-}
-
-.dark main{
-background:#0f172a!important;
-}
-
-.dark .bg-white,
-.dark .rounded-2xl,
-.dark .rounded-3xl,
-.dark .rounded-xl,
-.dark .shadow-lg,
-.dark .shadow-xl,
-.dark .shadow-sm,
-.dark .bg-slate-800,
-.dark .bg-slate-900,
-.dark .bg-slate-700,
-.dark .bg-slate-600{
-background:#1e293b!important;
-color:#f8fafc!important;
-}
-
-.dark .bg-slate-100,
-.dark .bg-amber-50,
-.dark .bg-emerald-50,
-.dark .bg-rose-50,
-.dark .bg-slate-200,
-.dark .bg-slate-300,
-.dark .bg-slate-400{
-background:#334155!important;
-color:#f8fafc!important;
-}
-
-.dark .bg-green-100{
-background:#14532d!important;
-color:#dcfce7!important;
-}
-
-.dark .bg-red-100{
-background:#7f1d1d!important;
-color:#fecaca!important;
-}
-
-.dark .bg-yellow-100{
-background:#713f12!important;
-color:#fde68a!important;
-}
-
-.dark .bg-blue-100{
-background:#1e3a8a!important;
-color:#dbeafe!important;
-}
-
-.dark .text-black,
-.dark .text-gray-900,
-.dark .text-gray-800,
-.dark .text-gray-700,
-.dark .text-gray-600,
-.dark .text-gray-500,
-.dark .text-slate-900,
-.dark .text-slate-800,
-.dark .text-slate-700,
-.dark .text-slate-600,
-.dark .text-slate-500,
-.dark .text-slate-400,
-.dark .text-blue-100,
-.dark .text-green-700,
-.dark .text-red-700,
-.dark .text-yellow-600,
-.dark .text-blue-600,
-.dark .text-emerald-600,
-.dark .text-rose-600,
-.dark .text-amber-700{
-color:#f8fafc!important;
-}
-
-.dark h1,
-.dark h2,
-.dark h3,
-.dark h4,
-.dark h5,
-.dark h6,
-.dark p,
-.dark span,
-.dark td,
-.dark th,
-.dark label,
-.dark small,
-.dark div,
-.dark a,
-.dark button{
-color:#f8fafc!important;
-}
-
-.dark input,
-.dark textarea,
-.dark select,
-.dark .border-slate-200,
-.dark .border-slate-100{
-border-color:#475569!important;
-background:#334155!important;
-color:white!important;
-}
-
-.dark #notificationPanel{
-background:#1e293b!important;
-color:#f8fafc!important;
-}
-
-.dark table{
-color:white;
-}
-
-.dark thead{
-background:#0f172a!important;
-}
-
-.dark tr:hover{
-background:#334155!important;
-}
-
-.card{
-transition:.25s;
-}
-
-.card:hover{
-transform:translateY(-5px);
-box-shadow:0 20px 35px rgba(0,0,0,.15);
-}
-
-</style>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ERP Suite{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --panel-soft: #f8fafc;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+            --primary: #0f172a;
+            --primary-soft: #e2e8f0;
+            --accent: #2563eb;
+            --status-success: #166534;
+            --status-warning: #a16207;
+            --status-danger: #b91c1c;
+            --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            font-family: Inter, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        a { text-decoration: none; color: inherit; }
+        .app-shell { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px 16px;
+            border-right: 1px solid rgba(148, 163, 184, 0.2);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px 18px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 18px;
+        }
+        .brand-badge {
+            width: 36px; height: 36px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #1d4ed8, #0f172a);
+            color: white; font-weight: 700;
+        }
+        .brand-copy h2 { margin: 0; font-size: 1.1rem; }
+        .brand-copy p { margin: 2px 0 0; color: #94a3b8; font-size: .72rem; }
+        .nav-group { margin-bottom: 18px; }
+        .nav-label {
+            display: block; color: #94a3b8; text-transform: uppercase;
+            letter-spacing: .12em; font-size: .66rem; font-weight: 700; margin: 10px 10px 8px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: 12px; color: #cbd5e1; font-weight: 600; transition: .2s ease;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover { background: rgba(37, 99, 235, 0.12); color: white; }
+        .nav-item.active {
+            background: rgba(37, 99, 235, 0.18);
+            border-color: rgba(96, 165, 250, 0.38);
+            color: white;
+        }
+        .nav-icon {
+            width: 28px; height: 28px; border-radius: 8px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(148, 163, 184, 0.12); color: #e2e8f0; font-size: .82rem;
+        }
+        .sidebar-user { margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
+        .sidebar-user-row { display:flex; align-items:center; gap:12px; }
+        .avatar { width:40px; height:40px; border-radius:50%; background: linear-gradient(135deg, #1d4ed8, #60a5fa); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; }
+        .status-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; display:inline-block; }
+        .main-shell { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .topbar {
+            position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,0.82); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border); padding: 14px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+        }
+        .topbar-left { display:flex; align-items:center; gap:12px; }
+        .mobile-toggle { display:none; }
+        .search-form { position: relative; min-width: 260px; }
+        .search-form input {
+            width: 100%; padding: 10px 14px 10px 40px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-size: .92rem;
+        }
+        .search-form .fa-magnifying-glass { position:absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+        .header-actions { display:flex; align-items:center; gap:12px; }
+        .icon-btn {
+            width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; border-radius: 10px; background: var(--panel-soft); border:1px solid var(--border); color: var(--text);
+        }
+        .profile-chip {
+            display:flex; align-items:center; gap:10px; padding: 6px 10px 6px 6px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel);
+        }
+        .content { padding: 28px; }
+        .page-header { margin-bottom: 20px; }
+        .breadcrumb {
+            display:flex; align-items:center; gap:8px; font-size: .76rem; letter-spacing: .02em; color: var(--muted); margin-bottom: 10px;
+        }
+        .page-header-row { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
+        .page-header h1 { margin:0; font-size: clamp(1.7rem, 2vw, 2.3rem); }
+        .page-header p { margin:8px 0 0; color: var(--muted); }
+        .header-actions--page { display:flex; align-items:center; gap:10px; }
+        .btn {
+            display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius: 12px; border:1px solid transparent; padding: 10px 14px; font-weight:600; cursor:pointer; transition:.2s ease;
+        }
+        .btn-primary { background: #0f172a; color: white; }
+        .btn-primary:hover { background: #1e293b; }
+        .btn-secondary { background: white; border-color: var(--border); color: var(--text); }
+        .btn-danger { background:#dc2626; color:white; }
+        .message-stack { display:grid; gap:10px; margin-bottom: 20px; }
+        .alert { border-radius: 12px; padding: 12px 14px; font-size: .92rem; border: 1px solid transparent; }
+        .alert-success { background:#ecfdf5; color:#166534; border-color:#bbf7d0; }
+        .alert-error { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+        .alert-info { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+        .card-grid { display:grid; gap:18px; }
+        .stats-grid { grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); }
+        .card {
+            background: var(--panel); border:1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; min-width: 0;
+        }
+        .metric-label { color: var(--muted); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+        .metric-value { margin-top: 8px; font-size: clamp(1.8rem, 2vw, 2.4rem); font-weight: 700; }
+        .metric-icon { width: 42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+        .status-badge {
+            display:inline-flex; align-items:center; gap:8px; padding: 6px 10px; border-radius: 999px; font-size:.76rem; font-weight:700; border:1px solid transparent;
+        }
+        .badge-success { background:#ecfdf5; border-color:#bbf7d0; color:#166534; }
+        .badge-warning { background:#fffbeb; border-color:#fcd34d; color:#a16207; }
+        .badge-danger { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+        .badge-neutral { background:#f8fafc; border-color:#e2e8f0; color:#0f172a; }
+        .surface { background: var(--panel); border:1px solid var(--border); border-radius:18px; box-shadow: var(--shadow); }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse: collapse; min-width: 760px; }
+        th, td { padding: 14px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+        th { color: var(--muted); font-size:.73rem; text-transform: uppercase; letter-spacing: .08em; background:#f8fafc; }
+        tbody tr:hover { background: #f8fafc; }
+        .action-list { display:grid; gap:12px; }
+        .action-item {
+            border: 1px solid var(--border); border-radius:14px; padding:14px; background: #f8fafc;
+        }
+        .action-item-header { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .eyebrow { font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+        .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:18px; }
+        .field-group { display:grid; gap:7px; }
+        .field-group label { font-size:.78rem; font-weight:700; color: var(--muted); }
+        .field-group input, .field-group select, .field-group textarea {
+            width:100%; border:1px solid var(--border); border-radius:12px; padding: 10px 12px; background: white; font-size: .94rem;
+        }
+        .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.12); }
+        .section-card { padding: 18px; border: 1px solid var(--border); border-radius:16px; background: #fff; }
+        .section-title { margin: 0 0 16px; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+        .summary-grid { display:grid; grid-template-columns: 180px 1fr; gap:20px; align-items:start; }
+        .profile-photo { width: 150px; height: 150px; border-radius: 18px; background: linear-gradient(135deg, #e2e8f0, #cbd5e1); display:flex; align-items:center; justify-content:center; object-fit:cover; }
+        .chip { display:inline-flex; align-items:center; gap:8px; padding: 6px 10px; border-radius: 999px; background:#f8fafc; border:1px solid var(--border); }
+        .pagination { display:flex; gap:8px; flex-wrap:wrap; margin-top: 16px; }
+        .pagination a, .pagination span { padding: 8px 12px; border-radius: 10px; border:1px solid var(--border); background:white; }
+        .pagination .current { background:#0f172a; color:white; border-color:#0f172a; }
+        .empty-state { padding: 48px 20px; text-align:center; border:1px dashed var(--border); border-radius:18px; background: #f8fafc; color: var(--muted); }
+        @media (max-width: 1024px) {
+            .sidebar { position: fixed; left:0; top:0; transform: translateX(-101%); transition: transform .2s ease; z-index: 50; box-shadow: 0 20px 40px rgba(15,23,42,.24); }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-toggle { display:inline-flex; }
+            .topbar { padding: 12px 18px; }
+            .content { padding: 18px; }
+        }
+        @media (max-width: 720px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .page-header-row { flex-direction: column; align-items: flex-start; }
+            .search-form { min-width: 180px; }
+            .header-actions { display:none; }
+            .summary-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-
 <body>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div class="brand-badge"><i class="fa-solid fa-building"></i></div>
+            <div class="brand-copy">
+                <h2>ERP Suite</h2>
+                <p>Operations</p>
+            </div>
+        </div>
 
-<div class="flex min-h-screen">
+        <div class="nav-group">
+            <span class="nav-label">Home</span>
+            <a class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                <span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>
+                <span>Dashboard</span>
+            </a>
+        </div>
 
-<aside class="w-72 bg-slate-900 text-white flex flex-col">
+        <div class="nav-group">
+            <span class="nav-label">My Work</span>
+            <a class="nav-item {% if request.resolver_match.url_name == 'employee_profile' %}active{% endif %}" href="{% url 'employee_profile' %}">
+                <span class="nav-icon"><i class="fa-solid fa-user"></i></span>
+                <span>My Profile</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'attendance_history' %}active{% endif %}" href="{% url 'attendance_history' %}">
+                <span class="nav-icon"><i class="fa-solid fa-clock"></i></span>
+                <span>My Attendance</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'view_leaves' %}active{% endif %}" href="{% url 'view_leaves' %}">
+                <span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
+                <span>My Leave</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'notifications_list' %}active{% endif %}" href="{% url 'notifications_list' %}">
+                <span class="nav-icon"><i class="fa-solid fa-bell"></i></span>
+                <span>My Notifications</span>
+            </a>
+        </div>
 
-<div class="p-8 border-b border-slate-700">
+        <div class="nav-group">
+            <span class="nav-label">People</span>
+            <a class="nav-item {% if request.resolver_match.url_name == 'employee_list' or request.resolver_match.url_name == 'employee_detail' or request.resolver_match.url_name == 'employee_create' or request.resolver_match.url_name == 'employee_edit' %}active{% endif %}" href="{% url 'employee_list' %}">
+                <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
+                <span>Employees</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'attendance_approvals' %}active{% endif %}" href="{% url 'attendance_approvals' %}">
+                <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span>
+                <span>Attendance</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'leave_calendar' %}active{% endif %}" href="{% url 'leave_calendar' %}">
+                <span class="nav-icon"><i class="fa-solid fa-calendar-week"></i></span>
+                <span>Leave Management</span>
+            </a>
+        </div>
 
-<h1 class="text-3xl font-bold">
+        <div class="nav-group">
+            <span class="nav-label">Operations</span>
+            <a class="nav-item {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}" href="{% url 'product_list' %}">
+                <span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+                <span>Products</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'inventory_dashboard' %}active{% endif %}" href="{% url 'inventory_dashboard' %}">
+                <span class="nav-icon"><i class="fa-solid fa-warehouse"></i></span>
+                <span>Inventory</span>
+            </a>
+            <a class="nav-item {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}" href="{% url 'customer_list' %}">
+                <span class="nav-icon"><i class="fa-solid fa-user-tie"></i></span>
+                <span>Customers</span>
+            </a>
+        </div>
 
-ERP Suite
+        <div class="nav-group">
+            <span class="nav-label">Documents</span>
+            <a class="nav-item {% if request.resolver_match.url_name == 'upload_file' %}active{% endif %}" href="{% url 'upload_file' %}">
+                <span class="nav-icon"><i class="fa-solid fa-folder-open"></i></span>
+                <span>Files / Documents</span>
+            </a>
+        </div>
 
-</h1>
+        <div class="nav-group">
+            <span class="nav-label">Insights</span>
+            <a class="nav-item {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}" href="{% url 'activity_log' %}">
+                <span class="nav-icon"><i class="fa-solid fa-chart-column"></i></span>
+                <span>Activity Log</span>
+            </a>
+        </div>
 
-<p class="text-slate-400 mt-2">
+        <div class="sidebar-user">
+            <div class="sidebar-user-row">
+                <div class="avatar">{{ request.user.username|first|upper }}</div>
+                <div style="min-width:0;flex:1;">
+                    <div style="font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div style="font-size:.76rem; color:#94a3b8;">{% if request.user.is_superuser %}Administrator{% else %}Employee{% endif %} <span class="status-dot"></span></div>
+                </div>
+            </div>
+        </div>
+    </aside>
 
-Enterprise Resource Planning
+    <div class="main-shell">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="btn btn-secondary mobile-toggle" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fa-solid fa-bars"></i></button>
+                <form class="search-form" action="{% url 'global_search' %}" method="get">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search employees, products, documents..." aria-label="Global search" />
+                </form>
+            </div>
+            <div class="header-actions">
+                <a class="icon-btn" href="{% url 'notifications_list' %}" aria-label="Notifications">
+                    <i class="fa-solid fa-bell"></i>
+                </a>
+                <div class="profile-chip">
+                    <div class="avatar" style="width:32px;height:32px;font-size:.8rem;">{{ request.user.username|first|upper }}</div>
+                    <div>
+                        <div style="font-weight:700; font-size:.9rem;">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <div style="font-size:.72rem; color: var(--muted);">{% if request.user.is_superuser %}Admin{% else %}Employee{% endif %}</div>
+                    </div>
+                </div>
+                <a class="btn btn-secondary" href="{% url 'employee_profile' %}">Profile</a>
+                <a class="btn btn-danger" href="{% url 'logout' %}">Logout</a>
+            </div>
+        </header>
 
-</p>
+        <main class="content">
+            <div class="page-header">
+                {% block breadcrumb %}<div class="breadcrumb"><span>Home</span><span>/</span><span>ERP Suite</span></div>{% endblock %}
+                <div class="page-header-row">
+                    <div>
+                        <h1>{% block page_title %}ERP Suite{% endblock %}</h1>
+                        <p>{% block page_subtitle %}Operational visibility and team productivity.{% endblock %}</p>
+                    </div>
+                    <div class="header-actions--page">{% block header_actions %}{% endblock %}</div>
+                </div>
+            </div>
 
+            {% if messages %}
+                <div class="message-stack">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags and 'error' in message.tags %}alert-error{% elif message.tags and 'success' in message.tags %}alert-success{% else %}alert-info{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 </div>
-
-<nav class="flex-1 p-6">
-
-<p class="uppercase text-xs tracking-widest text-slate-500 mb-5">
-
-MAIN MENU
-
-</p>
-
-<div class="space-y-2">
-    <a href="{% url 'dashboard' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-chart-line w-5"></i>
-
-Dashboard
-
-</a>
-
-<a href="{% url 'product_list' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-boxes-stacked w-5"></i>
-
-Products
-
-</a>
-
-<a href="{% url 'customer_list' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-users w-5"></i>
-
-Customers
-
-</a>
-
-<a href="{% url 'apply_leave' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-calendar-days w-5"></i>
-
-Apply Leave
-
-</a>
-
-<a href="{% url 'view_leaves' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-file-signature w-5"></i>
-
-Leave Records
-
-</a>
-
-<a href="{% url 'attendance_history' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-clock w-5"></i>
-
-Attendance
-
-</a>
-
-<a href="{% url 'upload_file' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-folder-open w-5"></i>
-
-Documents
-
-</a>
-
-{% if request.user.is_superuser %}
-
-<hr class="my-4 border-slate-700">
-
-<p class="uppercase text-xs tracking-widest text-slate-500 mb-3">ADMIN</p>
-
-<a href="{% url 'attendance_approvals' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-check-circle w-5"></i>
-
-Approvals
-
-</a>
-
-<a href="{% url 'activity_log' %}"
-class="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-600 transition duration-300">
-
-<i class="fa-solid fa-history w-5"></i>
-
-Activity Log
-
-</a>
-
-{% endif %}
-
-</div>
-
-</nav>
-
-<div class="p-6 border-t border-slate-700">
-
-<div class="flex items-center gap-4 mb-6">
-
-<div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold shadow-lg">
-
-{{ request.user.username|first|upper }}
-
-</div>
-
-<div>
-
-<p class="font-semibold text-lg">
-
-{{ request.user.username }}
-
-</p>
-
-<p class="text-sm text-slate-400">
-
-{% if request.user.is_superuser %}
-
-Administrator
-
-{% else %}
-
-Employee
-
-{% endif %}
-
-</p>
-
-</div>
-
-</div>
-
-<a href="{% url 'logout' %}"
-
-class="block bg-red-600 hover:bg-red-700 text-center py-3 rounded-xl font-semibold transition">
-
-<i class="fa-solid fa-right-from-bracket mr-2 text-[1.02rem]"></i>
-
-Logout
-
-</a>
-
-</div>
-
-</aside>
-
-<div class="flex-1">
-    <header class="bg-white shadow-sm border-b border-gray-200 px-10 py-6">
-
-<div class="flex justify-between items-center mb-4">
-
-<div>
-
-<h2 class="text-3xl font-bold text-slate-800">
-
-ERP Dashboard
-
-</h2>
-
-<p class="text-gray-500 mt-1">
-
-Enterprise Resource Planning System
-
-</p>
-
-</div>
-
-</div>
-
-<!-- Global Search Bar -->
-<form method="GET" action="{% url 'global_search' %}" class="mb-4">
-
-<div class="relative">
-
-<input 
-  type="text" 
-  name="q" 
-  placeholder="Search employees, products, customers, leaves, attendance..." 
-  class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-12 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-
-<i class="fa-solid fa-search absolute left-4 top-4 text-gray-400"></i>
-
-</div>
-
-</form>
-
-<div class="flex justify-between items-center">
-
-<div class="hidden md:flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full">
-
-<i class="fa-solid fa-circle-check"></i>
-
-<span class="font-medium">
-
-System Online
-
-</span>
-
-</div>
-
-<div class="flex items-center gap-4">
-
-<button
-id="themeToggle"
-class="w-11 h-11 rounded-full bg-slate-200 hover:bg-slate-300 transition shadow">
-
-<i class="fa-solid fa-moon text-[1.02rem]"></i>
-
-</button>
-
-<div class="relative">
-
-<button type="button" id="notificationToggle" class="relative w-11 h-11 rounded-full bg-slate-200 hover:bg-slate-300 transition shadow flex items-center justify-center">
-
-<i class="fa-solid fa-bell text-[1.02rem]"></i>
-
-{% if unread_notifications_count %}
-
-<span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-
-{{ unread_notifications_count }}
-
-</span>
-
-{% endif %}
-
-</button>
-
-</div>
-
-<div id="notificationPanel" class="hidden absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-<div class="bg-slate-800 px-4 py-3 text-white">
-<p class="font-semibold">Pending Leave Requests</p>
-</div>
-
-<div class="max-h-64 overflow-y-auto">
-{% if pending_leave_requests %}
-{% for leave in pending_leave_requests %}
-<div class="px-4 py-3 border-b border-slate-100">
-<p class="font-semibold text-slate-800">{{ leave.employee.username }}</p>
-<p class="text-sm text-slate-600">{{ leave.leave_type }} • {{ leave.start_date }} to {{ leave.end_date }}</p>
-</div>
-{% endfor %}
-{% else %}
-<div class="px-4 py-5 text-sm text-slate-600">No pending leave requests.</div>
-{% endif %}
-</div>
-</div>
-
-<div class="hidden md:flex items-center gap-3 relative" id="profileDropdown">
-
-<button onclick="toggleProfileDropdown()" class="flex items-center gap-3 hover:opacity-80 transition">
-
-<div class="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-
-{{ request.user.username|first|upper }}
-
-</div>
-
-<div>
-
-<p class="font-semibold text-slate-800">
-
-{{ request.user.username }}
-
-</p>
-
-<p class="text-xs text-gray-500">
-
-{% if request.user.is_superuser %}
-
-Administrator
-
-{% else %}
-
-Employee
-
-{% endif %}
-
-</p>
-
-</div>
-
-</button>
-
-<!-- Profile Dropdown Menu -->
-<div id="profileDropdownMenu" class="hidden absolute right-0 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden top-full">
-
-<div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-white">
-
-<p class="font-semibold">{{ request.user.first_name|default:request.user.username }}</p>
-
-<p class="text-xs text-blue-100">{{ request.user.email|default:"No email" }}</p>
-
-</div>
-
-<nav class="py-2">
-
-<a href="{% url 'employee_profile' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-100 transition">
-
-<i class="fa-solid fa-user-circle text-blue-600 w-5"></i>
-
-<span>My Profile</span>
-
-</a>
-
-<a href="{% url 'edit_profile' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-100 transition">
-
-<i class="fa-solid fa-pen-to-square text-amber-600 w-5"></i>
-
-<span>Edit Profile</span>
-
-</a>
-
-<a href="{% url 'change_password' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-100 transition">
-
-<i class="fa-solid fa-lock text-green-600 w-5"></i>
-
-<span>Change Password</span>
-
-</a>
-
-<hr class="my-2">
-
-<a href="{% url 'logout' %}" class="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-600">
-
-<i class="fa-solid fa-right-from-bracket w-5"></i>
-
-<span>Logout</span>
-
-</a>
-
-</nav>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</header>
-
-<main class="p-8 bg-slate-100 min-h-screen">
-
-{% if messages %}
-
-{% for message in messages %}
-
-<div class="mb-6 rounded-xl border border-green-300 bg-green-100 text-green-700 p-4 shadow">
-
-{{ message }}
-
-</div>
-
-{% endfor %}
-
-{% endif %}
-
-{% block content %}
-
-{% endblock %}
-
-</main>
-<footer class="bg-white border-t border-gray-200 py-5 px-10">
-
-<div class="flex justify-between items-center">
-
-<p class="text-gray-500 text-sm">
-
-© 2026 ERP Suite • Enterprise Resource Planning System
-
-</p>
-
-<p class="text-gray-500 text-sm">
-
-Developed with Django & Tailwind CSS
-
-</p>
-
-</div>
-
-</footer>
-
-</div>
-
-</div>
-
-<script>
-
-const body=document.body;
-const btn=document.getElementById("themeToggle");
-
-function enableDark(){
-
-body.classList.add("dark");
-
-btn.innerHTML='<i class="fa-solid fa-sun"></i>';
-
-}
-
-function disableDark(){
-
-body.classList.remove("dark");
-
-btn.innerHTML='<i class="fa-solid fa-moon"></i>';
-
-}
-
-if(localStorage.getItem("theme")==="dark"){
-
-enableDark();
-
-}
-
-btn.addEventListener("click",()=>{
-
-if(body.classList.contains("dark")){
-
-disableDark();
-
-localStorage.setItem("theme","light");
-
-}
-
-else{
-
-enableDark();
-
-localStorage.setItem("theme","dark");
-
-}
-
-});
-
-const notificationToggle=document.getElementById("notificationToggle");
-const notificationPanel=document.getElementById("notificationPanel");
-
-if(notificationToggle && notificationPanel){
-
-notificationToggle.addEventListener("click",(event)=>{
-
-event.preventDefault();
-event.stopPropagation();
-notificationPanel.classList.toggle("hidden");
-});
-
-document.addEventListener("click",(event)=>{
-if(!notificationToggle.contains(event.target) && !notificationPanel.contains(event.target)){
-notificationPanel.classList.add("hidden");
-}
-});
-
-}
-
-// Profile Dropdown Toggle
-function toggleProfileDropdown() {
-  const menu = document.getElementById("profileDropdownMenu");
-  if (menu) {
-    menu.classList.toggle("hidden");
-  }
-}
-
-// Close profile dropdown when clicking outside
-document.addEventListener("click", function(event) {
-  const dropdown = document.getElementById("profileDropdown");
-  const menu = document.getElementById("profileDropdownMenu");
-  if (dropdown && menu && !dropdown.contains(event.target)) {
-    menu.classList.add("hidden");
-  }
-});
-
-</script>
-
 </body>
-
 </html>

@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Employee Directory{% endblock %}
+{% block page_title %}Employee Directory{% endblock %}
+{% block page_subtitle %}Search, review, and manage employees across the organization.{% endblock %}
+{% block header_actions %}
+    {% if request.user.is_superuser %}
+        <a href="{% url 'employee_create' %}" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Add Employee</a>
+    {% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+    <div class="breadcrumb"><span>Home</span><span>/</span><span>People</span><span>/</span><span>Employees</span></div>
+{% endblock %}
+
+{% block content %}
+    <div class="surface" style="padding: 18px;">
+        <form method="get" class="form-grid" style="grid-template-columns: repeat(4, minmax(0,1fr)); align-items:end;">
+            <div class="field-group">
+                <label for="q">Search</label>
+                <input type="text" id="q" name="q" value="{{ query }}" placeholder="Name, employee ID, username" />
+            </div>
+            <div class="field-group">
+                <label for="department">Department</label>
+                <select id="department" name="department">
+                    <option value="">All departments</option>
+                    {% for department in departments %}
+                        <option value="{{ department.id }}" {% if selected_department == department.id|stringformat:'s' %}selected{% endif %}>{{ department.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All statuses</option>
+                    <option value="Active" {% if selected_status == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if selected_status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label for="location">Location</label>
+                <input type="text" id="location" name="location" value="{{ selected_location }}" placeholder="Office location" />
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; grid-column: 1 / -1;">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-filter"></i> Apply filters</button>
+                <a href="{% url 'employee_list' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+        <div class="table-wrap">
+            {% if employees %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Employee ID</th>
+                            <th>Department</th>
+                            <th>Designation</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Joining Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for employee in employees %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:12px;">
+                                        <div class="avatar" style="width:34px;height:34px; font-size:.76rem;">{{ employee.name|first|upper }}</div>
+                                        <div>
+                                            <div style="font-weight:700;">{{ employee.name }}</div>
+                                            <div style="font-size:.78rem; color: var(--muted);">{{ employee.user.username }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ employee.employee_id|default:'—' }}</td>
+                                <td>{{ employee.department.name|default:'Unassigned' }}</td>
+                                <td>{{ employee.position|default:'Not assigned' }}</td>
+                                <td>{{ employee.location|default:'—' }}</td>
+                                <td>
+                                    {% if employee.user.is_active %}
+                                        <span class="status-badge badge-success"><i class="fa-solid fa-circle"></i> Active</span>
+                                    {% else %}
+                                        <span class="status-badge badge-neutral"><i class="fa-solid fa-circle"></i> Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ employee.joining_date }}</td>
+                                <td>
+                                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                        <a href="{% url 'employee_detail' employee_id=employee.pk %}" class="btn btn-secondary" style="padding: 7px 10px; font-size:.75rem;">View</a>
+                                        {% if request.user.is_superuser %}
+                                            <a href="{% url 'employee_edit' employee_id=employee.pk %}" class="btn btn-secondary" style="padding: 7px 10px; font-size:.75rem;">Edit</a>
+                                            <a href="{% url 'toggle_employee_status' employee_id=employee.pk %}" class="btn {% if employee.user.is_active %}btn-danger{% else %}btn-primary{% endif %}" style="padding: 7px 10px; font-size:.75rem;">{% if employee.user.is_active %}Deactivate{% else %}Activate{% endif %}</a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if employees.paginator.num_pages > 1 %}
+                    <div class="pagination">
+                        {% if employees.has_previous %}
+                            <a href="?page={{ employees.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">Previous</a>
+                        {% endif %}
+                        <span class="current">Page {{ employees.number }} of {{ employees.paginator.num_pages }}</span>
+                        {% if employees.has_next %}
+                            <a href="?page={{ employees.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}">Next</a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <h3 style="margin:0 0 10px; font-size:1.2rem; color: var(--text);">No employees found.</h3>
+                    <p>Try adjusting the search and filters or add a new employee.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

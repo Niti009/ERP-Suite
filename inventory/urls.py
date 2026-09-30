@@ -26,6 +26,12 @@ urlpatterns = [
     path('profile/edit/', views.edit_profile, name='edit_profile'),
     path('profile/change-password/', views.change_password_view, name='change_password'),
 
+    path('people/employees/', views.employee_list, name='employee_list'),
+    path('people/employees/add/', views.employee_create, name='employee_create'),
+    path('people/employees/<int:employee_id>/', views.employee_detail, name='employee_detail'),
+    path('people/employees/<int:employee_id>/edit/', views.employee_edit, name='employee_edit'),
+    path('people/employees/<int:employee_id>/toggle-status/', views.toggle_employee_status, name='toggle_employee_status'),
+
     path('leave/apply/', views.apply_leave, name='apply_leave'),
     path('leave/view/', views.view_leaves, name='view_leaves'),
     path('leave/approve/<int:leave_id>/', views.approve_leave, name='approve_leave'),
