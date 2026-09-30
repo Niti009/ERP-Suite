@@ -4,9 +4,21 @@
 {% block page_title %}Employee Profile{% endblock %}
 {% block page_subtitle %}{{ employee.employee_id|default:'Employee record' }}{% endblock %}
 {% block header_actions %}
+    <a href="{% url 'employee_list' %}" class="btn btn-ghost"><i class="fa-solid fa-arrow-left"></i> Back to Employees</a>
     {% if request.user.is_superuser %}
         <a href="{% url 'employee_edit' employee_id=employee.pk %}" class="btn btn-secondary"><i class="fa-solid fa-pen-to-square"></i> Edit</a>
-        <a href="{% url 'toggle_employee_status' employee_id=employee.pk %}" class="btn {% if employee.user.is_active %}btn-danger{% else %}btn-primary{% endif %}">{% if employee.user.is_active %}<i class="fa-solid fa-user-slash"></i> Deactivate{% else %}<i class="fa-solid fa-user-check"></i> Activate{% endif %}</a>
+        {% if employee.user.is_active or employee.user.has_usable_password %}
+            <form method="post" action="{% url 'toggle_employee_status' employee_id=employee.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn {% if employee.user.is_active %}btn-danger{% else %}btn-primary{% endif %}">{% if employee.user.is_active %}<i class="fa-solid fa-user-slash"></i> Deactivate{% else %}<i class="fa-solid fa-user-check"></i> Activate{% endif %}</button>
+            </form>
+        {% endif %}
+        {% if not employee.user.is_active and not employee.user.has_usable_password and employee.employment_status == 'Active' %}
+            <form method="post" action="{% url 'resend_employee_invitation' employee_id=employee.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-envelope"></i> Resend Invitation</button>
+            </form>
+        {% endif %}
     {% endif %}
 {% endblock %}
 
@@ -27,8 +39,10 @@
             <div>
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
                     <h2 style="margin:0; font-size:2rem;">{{ employee.name }}</h2>
-                    {% if employee.user.is_active %}
+                    {% if status_label == 'Active' %}
                         <span class="status-badge badge-success">Active</span>
+                    {% elif status_label == 'Invited' %}
+                        <span class="status-badge badge-warning">Invited</span>
                     {% else %}
                         <span class="status-badge badge-neutral">Inactive</span>
                     {% endif %}
@@ -39,6 +53,9 @@
                     <div class="field-group"><label>Designation</label><div class="chip">{{ employee.position|default:'Not assigned' }}</div></div>
                     <div class="field-group"><label>Department</label><div class="chip">{{ employee.department.name|default:'Unassigned' }}</div></div>
                     <div class="field-group"><label>Location</label><div class="chip">{{ employee.location|default:'Not specified' }}</div></div>
+                    <div class="field-group"><label>Employment Status</label><div class="chip">{{ employee.employment_status }}</div></div>
+                    <div class="field-group"><label>Date of Birth</label><div class="chip">{{ employee.date_of_birth|default:'Not provided' }}</div></div>
+                    <div class="field-group"><label>Gender</label><div class="chip">{{ employee.gender|default:'Not provided' }}</div></div>
                 </div>
             </div>
         </div>
@@ -112,4 +129,24 @@
             </div>
         </div>
     </div>
+
+    {% if request.user.is_superuser %}
+        <div class="card" style="grid-column: 1 / -1;">
+            <h3 class="section-title">Send Employee a Message</h3>
+            <form method="post" action="{% url 'send_employee_prompt' employee_id=employee.pk %}" class="form-grid">
+                {% csrf_token %}
+                <div class="field-group">
+                    <label for="prompt-title">Subject</label>
+                    <input id="prompt-title" name="title" maxlength="200" required placeholder="Follow-up required">
+                </div>
+                <div class="field-group" style="grid-column:1 / -1;">
+                    <label for="prompt-message">Message or request</label>
+                    <textarea id="prompt-message" name="message" rows="4" maxlength="3000" required placeholder="Ask for an update or provide instructions for this employee."></textarea>
+                </div>
+                <div style="grid-column:1 / -1;display:flex;justify-content:flex-end;">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Send to Employee</button>
+                </div>
+            </form>
+        </div>
+    {% endif %}
 {% endblock %}

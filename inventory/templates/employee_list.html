@@ -34,6 +34,7 @@
                 <select id="status" name="status">
                     <option value="">All statuses</option>
                     <option value="Active" {% if selected_status == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Invited" {% if selected_status == 'Invited' %}selected{% endif %}>Invited</option>
                     <option value="Inactive" {% if selected_status == 'Inactive' %}selected{% endif %}>Inactive</option>
                 </select>
             </div>
@@ -81,11 +82,7 @@
                                 <td>{{ employee.position|default:'Not assigned' }}</td>
                                 <td>{{ employee.location|default:'—' }}</td>
                                 <td>
-                                    {% if employee.user.is_active %}
-                                        <span class="status-badge badge-success"><i class="fa-solid fa-circle"></i> Active</span>
-                                    {% else %}
-                                        <span class="status-badge badge-neutral"><i class="fa-solid fa-circle"></i> Inactive</span>
-                                    {% endif %}
+                                    <span class="status-badge {% if employee.account_status == 'Active' %}badge-success{% elif employee.account_status == 'Invited' %}badge-warning{% else %}badge-neutral{% endif %}"><i class="fa-solid fa-circle"></i> {{ employee.account_status }}</span>
                                 </td>
                                 <td>{{ employee.joining_date }}</td>
                                 <td>
@@ -93,7 +90,18 @@
                                         <a href="{% url 'employee_detail' employee_id=employee.pk %}" class="btn btn-secondary" style="padding: 7px 10px; font-size:.75rem;">View</a>
                                         {% if request.user.is_superuser %}
                                             <a href="{% url 'employee_edit' employee_id=employee.pk %}" class="btn btn-secondary" style="padding: 7px 10px; font-size:.75rem;">Edit</a>
-                                            <a href="{% url 'toggle_employee_status' employee_id=employee.pk %}" class="btn {% if employee.user.is_active %}btn-danger{% else %}btn-primary{% endif %}" style="padding: 7px 10px; font-size:.75rem;">{% if employee.user.is_active %}Deactivate{% else %}Activate{% endif %}</a>
+                                            {% if employee.user.is_active or employee.user.has_usable_password %}
+                                                <form method="post" action="{% url 'toggle_employee_status' employee_id=employee.pk %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn {% if employee.user.is_active %}btn-danger{% else %}btn-primary{% endif %}" style="padding: 7px 10px; font-size:.75rem;">{% if employee.user.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if not employee.user.is_active and not employee.user.has_usable_password and employee.employment_status == 'Active' %}
+                                                <form method="post" action="{% url 'resend_employee_invitation' employee_id=employee.pk %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-secondary" style="padding: 7px 10px; font-size:.75rem;">Resend invitation</button>
+                                                </form>
+                                            {% endif %}
                                         {% endif %}
                                     </div>
                                 </td>

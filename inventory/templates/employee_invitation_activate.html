@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activate ERP Suite Account</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: #f6f7fc; color: #111827; font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
+    .activation-card { width: min(100%, 460px); overflow: hidden; background: #fff; border: 1px solid #dfe7ff; border-radius: 20px; box-shadow: 0 18px 48px rgba(15,23,42,.12); }
+    .brand-band { padding: 28px; text-align: center; color: white; background: linear-gradient(135deg, #0f172a, #1e1b4b 55%, #4338ca); }
+    .brand-icon { width: 48px; height: 48px; margin: 0 auto 12px; display: grid; place-items: center; border-radius: 14px; background: #4f46e5; }
+    h1 { margin: 0; font-size: 24px; line-height: 1.2; }
+    .brand-band p { margin: 7px 0 0; color: #e0e7ff; }
+    .form-panel { padding: 28px; }
+    .intro { margin: 0 0 20px; color: #5b6479; }
+    label { display: block; margin: 16px 0 6px; font-weight: 650; }
+    input { width: 100%; padding: 11px 12px; border: 1px solid #dfe7ff; border-radius: 10px; background: #f8faff; color: #111827; font-size: 15px; }
+    input:focus { outline: 0; border-color: #818cf8; box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+    .error { margin-top: 7px; color: #b42332; font-size: 13px; }
+    .notice { margin: 0 0 16px; padding: 10px 12px; border: 1px solid #f4cbd0; border-radius: 9px; background: #fff3f4; color: #b42332; }
+    button { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f46e5, #6d5ef7); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .expiry { margin: 16px 0 0; text-align: center; color: #687187; font-size: 12px; }
+    @media (max-width: 480px) { .form-panel { padding: 22px; } .brand-band { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <main class="activation-card">
+    <header class="brand-band">
+      <div class="brand-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></div>
+      <h1>ERP Suite</h1>
+      <p>Activate your company account</p>
+    </header>
+    <section class="form-panel">
+      <p class="intro">Welcome{% if employee.user.first_name %}, {{ employee.user.first_name }}{% endif %}. Choose a password to activate your account.</p>
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="notice" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <label for="{{ form.new_password1.id_for_label }}">New password</label>
+        {{ form.new_password1 }}
+        {% for error in form.new_password1.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}
+        {% if form.new_password1.help_text %}<div class="error">{{ form.new_password1.help_text|safe }}</div>{% endif %}
+        <label for="{{ form.new_password2.id_for_label }}">Confirm password</label>
+        {{ form.new_password2 }}
+        {% for error in form.new_password2.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}
+        <button type="submit">Activate account</button>
+      </form>
+      <p class="expiry">This single-use invitation expires after {{ expiry_hours }} hours.</p>
+    </section>
+  </main>
+</body>
+</html>

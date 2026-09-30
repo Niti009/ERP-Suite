@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ERP Suite{% endblock %}</title>
+    <title>{% block title %}{{ erp_page_title|default:"ERP Suite" }}{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
         :root {
-            --bg: #eef2ff;
+            --bg: #f6f7fc;
             --panel: #ffffff;
             --panel-soft: #f8f9ff;
             --surface-strong: #eef4ff;
@@ -38,9 +38,7 @@
             font-size: 14px;
             line-height: 1.45;
             letter-spacing: -0.01em;
-            background:
-                radial-gradient(circle at top left, rgba(110, 98, 255, 0.16), transparent 28%),
-                linear-gradient(180deg, #f6f8ff 0%, #eef2ff 100%);
+            background: var(--bg);
             color: var(--text);
         }
         a { text-decoration: none; color: inherit; }
@@ -53,7 +51,7 @@
         .app-shell {
             display: flex;
             min-height: 100vh;
-            background: rgba(255,255,255,0.18);
+            background: var(--bg);
         }
         .sidebar {
             width: 260px;
@@ -94,6 +92,19 @@
             padding: 10px 12px; border-radius: 12px; color: #dfe7ff; font-weight: 600; font-size: 0.92rem;
             transition: .2s ease; border: 1px solid transparent; letter-spacing: -0.01em;
         }
+        .nav-item i,
+        .icon-btn i,
+        .btn i,
+        .metric-icon i,
+        .status-badge i,
+        .nav-icon i {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.88rem;
+            line-height: 1;
+            font-weight: 600;
+        }
         .nav-item:hover {
             background: rgba(99, 102, 241, 0.14);
             color: white;
@@ -126,6 +137,7 @@
             flex-direction: column;
             min-width: 0;
             padding: 18px 18px 26px;
+            background: var(--bg);
         }
         .topbar {
             position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,0.82); backdrop-filter: blur(20px);
@@ -148,10 +160,12 @@
             display:flex; align-items:center; gap:10px; padding: 6px 10px 6px 6px; border-radius: 12px; border: 1px solid var(--border); background: linear-gradient(180deg, #ffffff 0%, #f9faff 100%);
         }
         .content {
-            padding: 22px 6px 10px;
+            padding: 22px 8px 10px;
             max-width: 1440px;
             width: 100%;
             margin: 0 auto;
+            background: var(--bg);
+            border-radius: 24px;
         }
         .page-header {
             margin-bottom: 18px;
@@ -161,7 +175,7 @@
             display:flex; align-items:center; gap:8px; font-size: .75rem; letter-spacing: .02em; color: var(--muted); margin-bottom: 10px;
         }
         .page-header-row { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
-        .page-header h1 { margin:0; font-size: clamp(1.9rem, 2.2vw, 2.6rem); }
+        .page-header h1 { margin:0; font-size: 2rem; }
         .page-header p { margin:8px 0 0; color: var(--muted); font-size: .98rem; }
         .header-actions--page { display:flex; align-items:center; gap:10px; }
         .btn {
@@ -192,7 +206,7 @@
         .card-grid { display:grid; gap:18px; }
         .stats-grid { grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); }
         .card {
-            background: linear-gradient(180deg, #ffffff 0%, #f9faff 100%); border:1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; min-width: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,248,255,0.95)); border:1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; min-width: 0;
         }
         .metric-label { color: var(--muted); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
         .metric-value { margin-top: 8px; font-size: clamp(1.8rem, 2vw, 2.4rem); font-weight: 700; }
@@ -232,18 +246,63 @@
         .pagination a, .pagination span { padding: 8px 12px; border-radius: 10px; border:1px solid var(--border); background:white; }
         .pagination .current { background: linear-gradient(135deg, var(--primary), var(--accent)); color:white; border-color:transparent; }
         .empty-state { padding: 48px 20px; text-align:center; border:1px dashed var(--border); border-radius:18px; background: linear-gradient(180deg, #fbfcff, #f5f7ff); color: var(--muted); }
+        .account-menu { position: relative; }
+        .account-menu summary { list-style: none; cursor: pointer; }
+        .account-menu summary::-webkit-details-marker { display: none; }
+        .account-menu[open] summary { border-color: #b9c5ff; }
+        .account-dropdown {
+            position: absolute; right: 0; top: calc(100% + 10px); z-index: 60;
+            width: 230px; padding: 8px; background: #fff; border: 1px solid var(--border);
+            border-radius: 14px; box-shadow: 0 18px 40px rgba(15,23,42,.16);
+        }
+        .account-dropdown a, .account-dropdown button {
+            display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 11px;
+            border: 0; border-radius: 9px; background: transparent; color: var(--text);
+            font: inherit; text-align: left; cursor: pointer;
+        }
+        .account-dropdown a:hover, .account-dropdown button:hover { background: #f3f5ff; color: var(--accent-strong); }
+        .account-dropdown .logout-action { color: var(--danger); }
+        .account-divider { height: 1px; margin: 6px 4px; background: var(--border); }
+        .notification-count {
+            position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px;
+            display: grid; place-items: center; border-radius: 999px; background: var(--accent);
+            color: #fff; font-size: 10px; font-weight: 700; border: 2px solid #fff;
+        }
+        .notification-link { position: relative; }
+        .breadcrumb a { color: var(--muted); }
+        .breadcrumb a:hover { color: var(--accent-strong); }
+        .breadcrumb [aria-current="page"] { color: var(--primary); font-weight: 650; }
+
+        /* Align Tailwind-based module templates with the shared ERP tokens. */
+        .bg-blue-600 { background-color: var(--accent) !important; }
+        .hover\:bg-blue-700:hover { background-color: var(--accent-strong) !important; }
+        .text-blue-600 { color: var(--accent) !important; }
+        .border-blue-600 { border-color: var(--accent) !important; }
+        .bg-purple-600 { background-color: var(--accent-strong) !important; }
+        .text-purple-600 { color: var(--accent-strong) !important; }
+        .rounded-3xl { border-radius: 18px !important; }
+        .rounded-2xl { border-radius: 14px !important; }
+        .rounded-xl { border-radius: 10px !important; }
+        .shadow-xl, .shadow-2xl { box-shadow: var(--shadow) !important; }
+        .text-4xl { font-size: 2rem !important; line-height: 1.2 !important; }
+        .text-3xl { font-size: 1.65rem !important; line-height: 1.25 !important; }
         @media (max-width: 1024px) {
             .sidebar { position: fixed; left:0; top:0; transform: translateX(-101%); transition: transform .2s ease; z-index: 50; box-shadow: 0 20px 40px rgba(15,23,42,.24); }
             .sidebar.open { transform: translateX(0); }
             .mobile-toggle { display:inline-flex; }
             .topbar { padding: 12px 18px; }
-            .content { padding: 18px; }
+            .content { padding: 18px 10px 10px; }
         }
         @media (max-width: 720px) {
             .form-grid { grid-template-columns: 1fr; }
             .page-header-row { flex-direction: column; align-items: flex-start; }
-            .search-form { min-width: 180px; }
-            .header-actions { display:none; }
+            .search-form { min-width: 0; width: min(42vw, 240px); }
+            .header-actions { display:flex; gap:8px; }
+            .profile-name, .profile-role, .dashboard-label { display:none; }
+            .profile-chip { padding: 4px; }
+            .icon-btn { width: 38px; height: 38px; }
+            .topbar { gap: 8px; }
+            .main-shell { padding: 8px 8px 16px; }
             .summary-grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -252,7 +311,7 @@
 <div class="app-shell">
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-            <div class="brand-badge"><i class="fa-solid fa-building"></i></div>
+            <div class="brand-badge"><i class="fa-solid fa-layer-group"></i></div>
             <div class="brand-copy">
                 <h2>ERP Suite</h2>
                 <p>Operations</p>
@@ -287,21 +346,23 @@
             </a>
         </div>
 
-        <div class="nav-group">
-            <span class="nav-label">People</span>
-            <a class="nav-item {% if request.resolver_match.url_name == 'employee_list' or request.resolver_match.url_name == 'employee_detail' or request.resolver_match.url_name == 'employee_create' or request.resolver_match.url_name == 'employee_edit' %}active{% endif %}" href="{% url 'employee_list' %}">
-                <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
-                <span>Employees</span>
-            </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'attendance_approvals' %}active{% endif %}" href="{% url 'attendance_approvals' %}">
-                <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span>
-                <span>Attendance</span>
-            </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'leave_calendar' %}active{% endif %}" href="{% url 'leave_calendar' %}">
-                <span class="nav-icon"><i class="fa-solid fa-calendar-week"></i></span>
-                <span>Leave Management</span>
-            </a>
-        </div>
+        {% if request.user.is_superuser %}
+            <div class="nav-group">
+                <span class="nav-label">People</span>
+                <a class="nav-item {% if request.resolver_match.url_name == 'employee_list' or request.resolver_match.url_name == 'employee_detail' or request.resolver_match.url_name == 'employee_create' or request.resolver_match.url_name == 'employee_edit' %}active{% endif %}" href="{% url 'employee_list' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
+                    <span>Employees</span>
+                </a>
+                <a class="nav-item {% if request.resolver_match.url_name == 'attendance_approvals' %}active{% endif %}" href="{% url 'attendance_approvals' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span>
+                    <span>Attendance</span>
+                </a>
+                <a class="nav-item {% if request.resolver_match.url_name == 'leave_calendar' %}active{% endif %}" href="{% url 'leave_calendar' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-calendar-week"></i></span>
+                    <span>Leave Management</span>
+                </a>
+            </div>
+        {% endif %}
 
         <div class="nav-group">
             <span class="nav-label">Operations</span>
@@ -317,6 +378,16 @@
                 <span class="nav-icon"><i class="fa-solid fa-user-tie"></i></span>
                 <span>Customers</span>
             </a>
+            {% if request.user.is_superuser %}
+                <a class="nav-item {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}" href="{% url 'order_list' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-receipt"></i></span>
+                    <span>Orders</span>
+                </a>
+                <a class="nav-item {% if request.resolver_match.url_name == 'payment_list' %}active{% endif %}" href="{% url 'payment_list' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-credit-card"></i></span>
+                    <span>Payments</span>
+                </a>
+            {% endif %}
         </div>
 
         <div class="nav-group">
@@ -356,45 +427,53 @@
                 </form>
             </div>
             <div class="header-actions">
-                <button class="btn btn-ghost" type="button" onclick="if (window.history.length > 1) { history.back(); } else { window.location.href = '{% url 'dashboard' %}'; }">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back</span>
-                </button>
-                <a class="btn btn-primary" href="{% url 'dashboard' %}">
-                    <i class="fa-solid fa-gauge-high"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a class="icon-btn" href="{% url 'notifications_list' %}" aria-label="Notifications">
+                <a class="icon-btn notification-link" href="{% url 'notifications_list' %}" aria-label="Notifications{% if unread_notifications_count %}, {{ unread_notifications_count }} unread{% endif %}" title="Notifications">
                     <i class="fa-solid fa-bell"></i>
+                    {% if unread_notifications_count %}<span class="notification-count">{{ unread_notifications_count }}</span>{% endif %}
                 </a>
-                <div class="profile-chip">
-                    <div class="avatar" style="width:32px;height:32px;font-size:.8rem;">{{ request.user.username|first|upper }}</div>
-                    <div>
-                        <div style="font-weight:700; font-size:.9rem;">{{ request.user.get_full_name|default:request.user.username }}</div>
-                        <div style="font-size:.72rem; color: var(--muted);">{% if request.user.is_superuser %}Admin{% else %}Employee{% endif %}</div>
+                <details class="account-menu">
+                    <summary class="profile-chip" aria-label="Account menu">
+                        <span class="avatar" style="width:32px;height:32px;font-size:.8rem;">{{ request.user.username|first|upper }}</span>
+                        <span class="profile-name">
+                            <span style="display:block;font-weight:700;font-size:.88rem;">{{ request.user.get_full_name|default:request.user.username }}</span>
+                            <span class="profile-role" style="display:block;font-size:.72rem;color:var(--muted);">{% if request.user.is_superuser %}Administrator{% else %}Employee{% endif %}</span>
+                        </span>
+                        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                    </summary>
+                    <div class="account-dropdown">
+                        <a href="{% url 'employee_profile' %}"><i class="fa-regular fa-user"></i>My Profile</a>
+                        <a href="{% url 'change_password' %}"><i class="fa-solid fa-key"></i>Change Password</a>
+                        <div class="account-divider"></div>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button class="logout-action" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i>Log out</button>
+                        </form>
                     </div>
-                </div>
-                <a class="btn btn-secondary" href="{% url 'employee_profile' %}">
-                    <i class="fa-solid fa-user"></i>
-                    <span>Profile</span>
-                </a>
-                <a class="btn btn-danger" href="{% url 'logout' %}">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Logout</span>
-                </a>
+                </details>
             </div>
         </header>
 
         <main class="content">
             <div class="page-header">
-                {% block breadcrumb %}<div class="breadcrumb"><span>Home</span><span>/</span><span>ERP Suite</span></div>{% endblock %}
-                <div class="page-header-row">
-                    <div>
-                        <h1>{% block page_title %}ERP Suite{% endblock %}</h1>
-                        <p>{% block page_subtitle %}Operational visibility and team productivity.{% endblock %}</p>
+                {% block breadcrumb %}
+                    <nav class="breadcrumb" aria-label="Breadcrumb">
+                        {% for crumb in erp_breadcrumbs %}
+                            {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>{% else %}<span aria-current="page">{{ crumb.label }}</span>{% endif %}
+                            {% if not forloop.last %}<span aria-hidden="true">/</span>{% endif %}
+                        {% endfor %}
+                    </nav>
+                {% endblock %}
+                {% if not erp_hide_page_heading %}
+                    <div class="page-header-row">
+                        <div>
+                            <h1>{% block page_title %}{{ erp_page_title|default:"ERP Suite" }}{% endblock %}</h1>
+                            <p>{% block page_subtitle %}{{ erp_page_subtitle|default:"Operational visibility and team productivity." }}{% endblock %}</p>
+                        </div>
+                {% endif %}
+                <div class="header-actions--page">{% block header_actions %}{% endblock %}</div>
+                {% if not erp_hide_page_heading %}
                     </div>
-                    <div class="header-actions--page">{% block header_actions %}{% endblock %}</div>
-                </div>
+                {% endif %}
             </div>
 
             {% if messages %}

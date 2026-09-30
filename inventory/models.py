@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Department(models.Model):
     name = models.CharField(max_length=100)
@@ -9,10 +10,23 @@ class Department(models.Model):
 
 
 class Employee(models.Model):
+    EMPLOYMENT_STATUS_CHOICES = (
+        ('Active', 'Active'),
+        ('Inactive', 'Inactive'),
+    )
+    GENDER_CHOICES = (
+        ('Male', 'Male'),
+        ('Female', 'Female'),
+        ('Other', 'Other'),
+    )
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True)
     position = models.CharField(max_length=100)
+    employment_status = models.CharField(max_length=20, choices=EMPLOYMENT_STATUS_CHOICES, default='Active')
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2)
     joining_date = models.DateField()
@@ -23,6 +37,17 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class EmployeeInvitation(models.Model):
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name='invitation')
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Invitation for {self.employee.name}"
 
 
 class Product(models.Model):
@@ -128,6 +153,7 @@ class Attendance(models.Model):
 class UploadedFile(models.Model):
     file = models.FileField(upload_to='uploads/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_files')
 
     def __str__(self):
         return self.file.name
@@ -142,6 +168,8 @@ class Notification(models.Model):
         ('leave_submitted', 'Leave Request Submitted'),
         ('attendance_pending', 'Attendance Awaiting Approval'),
         ('profile_updated', 'Profile Updated'),
+        ('admin_prompt', 'Administrator Message'),
+        ('employee_activity', 'Employee Activity'),
         ('system_alert', 'System Alert'),
     )
 

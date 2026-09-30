@@ -2,7 +2,7 @@
 
 {% block title %}{{ title }}{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
-{% block page_subtitle %}Create employee accounts through the ERP workflow without using Django Admin.{% endblock %}
+{% block page_subtitle %}{% if is_edit %}Maintain employee and employment details.{% else %}Create the employee record and send a secure account activation invitation.{% endif %}{% endblock %}
 {% block breadcrumb %}
     <div class="breadcrumb"><span>Home</span><span>/</span><span>People</span><span>/</span><span>Employees</span><span>/</span><span>{{ title }}</span></div>
 {% endblock %}
@@ -108,21 +108,9 @@
                         {{ form.email }}
                         {% for error in form.email.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
                     </div>
-                    <div class="field-group">
-                        <label for="{{ form.password1.id_for_label }}">Initial Password</label>
-                        {{ form.password1 }}
-                        {% for error in form.password1.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
-                    </div>
-                    <div class="field-group">
-                        <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
-                        {{ form.password2 }}
-                        {% for error in form.password2.errors %}<div class="alert alert-error" style="margin-top:8px;">{{ error }}</div>{% endfor %}
-                    </div>
-                    <div class="field-group" style="display:flex; align-items:center; gap:12px; padding-top:16px;">
-                        <label for="{{ form.is_active.id_for_label }}" style="display:flex; align-items:center; gap:10px; font-weight:600; color: var(--text);">
-                            {{ form.is_active }}
-                            Account active
-                        </label>
+                    <div class="field-group" style="grid-column:1 / -1;">
+                        <label>Invitation</label>
+                        <p style="margin:0; color:var(--muted);">{% if is_edit %}Account access is managed separately from employee details.{% else %}The account starts inactive. The employee receives a single-use activation link and sets their own password.{% endif %}</p>
                     </div>
                 </div>
             </div>

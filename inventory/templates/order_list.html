@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Orders{% endblock %}
+{% block page_title %}Orders{% endblock %}
+{% block page_subtitle %}Review recorded customer orders and their line-item totals.{% endblock %}
+
+{% block content %}
+<section class="surface" style="padding:18px;margin-bottom:18px;">
+    <form method="get" class="form-grid" style="grid-template-columns:minmax(0,1fr) auto;align-items:end;">
+        <div class="field-group">
+            <label for="order-search">Search orders</label>
+            <input id="order-search" name="q" value="{{ query }}" placeholder="Order number, customer, or product">
+        </div>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+    </form>
+</section>
+<section class="card">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Items</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td>#{{ order.pk }}</td>
+                        <td>{{ order.customer.name }}</td>
+                        <td>{{ order.date }}</td>
+                        <td>{{ order.orderitem_set.all|length }}</td>
+                        <td>{{ order.total_amount }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5"><div class="empty-state">No orders match this search.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -6,13 +6,15 @@ from datetime import date
 
 @receiver(post_save, sender=User)
 def create_employee_profile(sender, instance, created, **kwargs):
-    if created and not hasattr(instance, 'employee'):
+    if created:
         department, _ = Department.objects.get_or_create(name='General')
-        Employee.objects.create(
+        Employee.objects.get_or_create(
             user=instance,
-            name=instance.username,
-            position='Not Assigned',
-            salary=0.00,
-            joining_date=date.today(),
-            department=department
+            defaults={
+                'name': instance.get_full_name().strip() or instance.username,
+                'position': 'Not Assigned',
+                'salary': 0.00,
+                'joining_date': date.today(),
+                'department': department,
+            },
         )

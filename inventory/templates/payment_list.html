@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Payments{% endblock %}
+{% block page_title %}Payments{% endblock %}
+{% block page_subtitle %}Review recorded payments and their linked orders.{% endblock %}
+
+{% block content %}
+<section class="surface" style="padding:18px;margin-bottom:18px;">
+    <form method="get" class="form-grid" style="grid-template-columns:minmax(0,1fr) auto;align-items:end;">
+        <div class="field-group">
+            <label for="payment-search">Search payments</label>
+            <input id="payment-search" name="q" value="{{ query }}" placeholder="Payment, order number, customer, or method">
+        </div>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+    </form>
+</section>
+<section class="card">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Payment</th><th>Order</th><th>Customer</th><th>Method</th><th>Date</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for payment in payments %}
+                    <tr>
+                        <td>#{{ payment.pk }}</td>
+                        <td>#{{ payment.order_id }}</td>
+                        <td>{{ payment.order.customer.name }}</td>
+                        <td>{{ payment.payment_method }}</td>
+                        <td>{{ payment.payment_date }}</td>
+                        <td>{{ payment.amount }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6"><div class="empty-state">No payments match this search.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

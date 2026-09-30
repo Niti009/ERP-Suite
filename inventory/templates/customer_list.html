@@ -7,7 +7,7 @@
     <div>
 
         <h1 class="text-4xl font-bold text-gray-800">
-            👥 Customers
+            <i class="fa-solid fa-user-group text-indigo-600 mr-2" aria-hidden="true"></i>Customers
         </h1>
 
         <p class="text-gray-500 mt-2">
@@ -16,8 +16,8 @@
 
     </div>
 
-    <a href="{% url 'add_customer' %}"
-       class="bg-[#88BDF2] hover:bg-blue-500 text-white px-6 py-3 rounded-xl shadow-lg transition">
+     <a href="{% url 'add_customer' %}"
+         class="btn btn-primary">
 
         + Add Customer
 
@@ -25,11 +25,16 @@
 
 </div>
 
+<form method="get" class="surface" style="display:flex;gap:10px;padding:16px;margin-bottom:18px;">
+    <input style="flex:1;min-width:0;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;" type="search" name="q" value="{{ query }}" placeholder="Search customers by name, email, or phone" aria-label="Search customers">
+    <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-magnifying-glass"></i>Search</button>
+</form>
+
 <div class="bg-white rounded-3xl shadow-lg overflow-hidden">
 
     <table class="w-full">
 
-        <thead class="bg-gradient-to-r from-[#88BDF2] to-[#C1BFFF] text-white">
+        <thead>
 
             <tr>
 

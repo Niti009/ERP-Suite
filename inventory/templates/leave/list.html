@@ -60,7 +60,10 @@
     </table>
 
     <div style="text-align:center; margin-top: 20px;">
-        <a href="{% url 'logout' %}" class="btn">Logout</a>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn">Logout</button>
+        </form>
     </div>
 </body>
 </html>

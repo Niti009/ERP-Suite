@@ -48,7 +48,7 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for employee in results.employees %}
-                    <div class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+                    <a href="{% url 'employee_detail' employee_id=employee.pk %}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
                         <div>
                             <p class="font-semibold text-slate-800">
                                 {{ employee.name }}
@@ -59,7 +59,7 @@
                             </p>
                             {% endif %}
                         </div>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             </section>
@@ -77,7 +77,7 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for product in results.products %}
-                    <div class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+                    <a href="{% url 'product_list' %}?q={{ product.name|urlencode }}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
                         <div>
                             <p class="font-semibold text-slate-800">
                                 {{ product.name }}
@@ -90,7 +90,7 @@
                         <span class="text-sm font-semibold text-slate-700">
                             ₹{{ product.price }}
                         </span>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             </section>
@@ -108,14 +108,14 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for customer in results.customers %}
-                    <div class="px-6 py-4">
+                    <a href="{% url 'customer_list' %}?q={{ customer.name|urlencode }}" class="px-6 py-4 block hover:bg-slate-50">
                         <p class="font-semibold text-slate-800">
                             {{ customer.name }}
                         </p>
                         <p class="text-sm text-gray-500">
                             {{ customer.email }}
                         </p>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             </section>
@@ -133,7 +133,7 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for leave in results.leaves %}
-                    <div class="px-6 py-4 flex justify-between items-center">
+                    <a href="{% url 'view_leaves' %}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
                         <div>
                             <p class="font-semibold text-slate-800">
                                 {{ leave.employee.username }}
@@ -154,7 +154,7 @@
                         ">
                             {{ leave.status }}
                         </span>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             </section>
@@ -172,7 +172,7 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for record in results.attendance %}
-                    <div class="px-6 py-4 flex justify-between items-center">
+                    <a href="{% if request.user.is_superuser %}{% url 'attendance_approvals' %}{% else %}{% url 'attendance_history' %}{% endif %}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
                         <div>
                             <p class="font-semibold text-slate-800">
                                 {{ record.employee.username }}
@@ -185,7 +185,7 @@
                         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
                             {{ record.status }}
                         </span>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             </section>
@@ -203,14 +203,46 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for document in results.documents %}
-                    <div class="px-6 py-4">
+                    <a href="{{ document.file.url }}" class="px-6 py-4 block hover:bg-slate-50" target="_blank" rel="noopener">
                         <p class="font-semibold text-slate-800">
                             {{ document.file.name }}
                         </p>
                         <p class="text-sm text-gray-500">
                             Uploaded {{ document.uploaded_at }}
                         </p>
-                    </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if results.orders %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-receipt text-indigo-600 mr-2"></i>Orders</h2>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for order in results.orders %}
+                        <a href="{% url 'order_list' %}?q={% if query.isdigit %}{{ order.pk }}{% else %}{{ query|urlencode }}{% endif %}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+                            <span><strong>Order #{{ order.pk }}</strong><span class="block text-sm text-gray-500">{{ order.customer.name }} · {{ order.date }}</span></span>
+                            <span>{{ order.total_amount }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if results.payments %}
+            <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-credit-card text-indigo-600 mr-2"></i>Payments</h2>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for payment in results.payments %}
+                        <a href="{% url 'payment_list' %}?q={% if query.isdigit %}{{ payment.order_id }}{% else %}{{ query|urlencode }}{% endif %}" class="px-6 py-4 flex justify-between items-center hover:bg-slate-50">
+                            <span><strong>Payment #{{ payment.pk }}</strong><span class="block text-sm text-gray-500">Order #{{ payment.order_id }} · {{ payment.order.customer.name }} · {{ payment.payment_method }}</span></span>
+                            <span>{{ payment.amount }}</span>
+                        </a>
                     {% endfor %}
                 </div>
             </section>

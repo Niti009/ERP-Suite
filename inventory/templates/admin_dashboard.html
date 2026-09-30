@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard{% endblock %}
-{% block page_title %}Operational Dashboard{% endblock %}
+{% block page_title %}Welcome back, {{ request.user.get_full_name|default:request.user.username }}{% endblock %}
 {% block page_subtitle %}Live visibility into workforce activity, approvals, stock health, and operational priorities.{% endblock %}
+{% block breadcrumb %}<nav class="breadcrumb" aria-label="Breadcrumb"><span aria-current="page">Home</span></nav>{% endblock %}
+{% block header_actions %}
+    <a href="{% url 'employee_list' %}" class="btn btn-secondary"><i class="fa-solid fa-users"></i> Employees</a>
+    <a href="{% url 'employee_create' %}" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Add Employee</a>
+{% endblock %}
 
 {% block content %}
 <div class="card-grid stats-grid">

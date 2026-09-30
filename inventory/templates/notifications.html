@@ -3,7 +3,7 @@
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-8">
   <!-- Header -->
-  <div class="rounded-3xl bg-gradient-to-r from-blue-700 to-slate-800 p-8 text-white shadow-xl">
+  <div class="rounded-3xl p-8 text-white shadow-lg" style="background:#18254a;">
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold">Notifications</h1>
@@ -19,10 +19,10 @@
   <!-- Action Buttons -->
   {% if unread_count > 0 %}
     <div class="flex gap-4">
-      <a href="{% url 'mark_all_notifications_read' %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
-        <i class="fa-solid fa-check-double mr-2"></i>
-        Mark All as Read
-      </a>
+      <form method="post" action="{% url 'mark_all_notifications_read' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check-double"></i>Mark All as Read</button>
+      </form>
     </div>
   {% endif %}
 
@@ -39,6 +39,10 @@
                     <i class="fa-solid fa-check {% if 'leave_approved' in notification.notification_type or 'attendance_approved' in notification.notification_type %}text-green-600{% else %}text-red-600{% endif %}"></i>
                   {% elif 'rejected' in notification.notification_type %}
                     <i class="fa-solid fa-times text-red-600"></i>
+                  {% elif notification.notification_type == 'admin_prompt' %}
+                    <i class="fa-solid fa-message text-indigo-600"></i>
+                  {% elif notification.notification_type == 'employee_activity' %}
+                    <i class="fa-solid fa-clipboard-check text-indigo-600"></i>
                   {% elif 'submitted' in notification.notification_type %}
                     <i class="fa-solid fa-paper-plane text-blue-600"></i>
                   {% elif 'profile' in notification.notification_type %}
@@ -61,9 +65,12 @@
             </div>
 
             <div class="ml-4">
-              <a href="{% url 'mark_notification_read' notification.id %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm">
-                <i class="fa-solid fa-arrow-right"></i>
-              </a>
+              <form method="post" action="{% url 'mark_notification_read' notification.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary" aria-label="Mark notification as read and open it">
+                  <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </form>
             </div>
           </div>
         </div>

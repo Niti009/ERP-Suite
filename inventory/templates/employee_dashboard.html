@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 
 {% block title %}My Workspace{% endblock %}
-{% block page_title %}My Workspace{% endblock %}
-{% block page_subtitle %}Personal attendance, leave activity, and work status overview.{% endblock %}
+{% block page_title %}Good evening, {{ request.user.get_full_name|default:request.user.username }}{% endblock %}
+{% block page_subtitle %}Your attendance, leave requests, and account activity at a glance.{% endblock %}
+{% block breadcrumb %}
+    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{% url 'dashboard' %}">Home</a><span aria-hidden="true">/</span><span aria-current="page">Dashboard</span></nav>
+{% endblock %}
+{% block header_actions %}
+    <a href="{% url 'employee_profile' %}" class="btn btn-secondary"><i class="fa-solid fa-user"></i> Profile</a>
+    <a href="{% url 'apply_leave' %}" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Apply leave</a>
+{% endblock %}
 
 {% block content %}
 <div class="card-grid stats-grid">
@@ -119,4 +126,24 @@
         </div>
     </div>
 </div>
+
+<section class="card" style="margin-top:24px;">
+    <div class="eyebrow">Recent activity</div>
+    <h3 style="margin:8px 0 16px;font-size:1.15rem;">Your latest updates</h3>
+    {% if recent_activity %}
+        <div class="action-list">
+            {% for activity in recent_activity %}
+                <div class="action-item action-item-header">
+                    <div>
+                        <div class="eyebrow">{{ activity.get_action_type_display }}</div>
+                        <div style="margin-top:5px;font-weight:600;">{{ activity.description }}</div>
+                    </div>
+                    <time class="status-badge badge-neutral" datetime="{{ activity.timestamp|date:'c' }}">{{ activity.timestamp|date:'d M, h:i A' }}</time>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state" style="padding:24px;">No recent activity has been recorded for your account.</div>
+    {% endif %}
+</section>
 {% endblock %}

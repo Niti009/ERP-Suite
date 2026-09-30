@@ -1,11 +1,22 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.forms import SetPasswordForm
 from django.conf import settings
 from django.urls import reverse
+from django.core.mail import send_mail
+from django.core.exceptions import ObjectDoesNotExist
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.contrib.auth.forms import UserCreationForm
+from django.db import IntegrityError, transaction
+from django.db.models import Exists, OuterRef
+from django.views.decorators.http import require_POST
+import hashlib
+import hmac
 import json
+import logging
+import secrets
 from types import SimpleNamespace
 from datetime import datetime, timedelta
 from django.db.models import Q
@@ -20,9 +31,12 @@ from .models import (
     LeaveApplication,
     Product,
     Customer,
+    Order,
+    Payment,
     UploadedFile,
     Notification,
     ActivityLog,
+    EmployeeInvitation,
 )
 
 from .forms import (
@@ -32,36 +46,34 @@ from .forms import (
     FileUploadForm,
     UserProfileForm,
     EmployeeProfileForm,
+    EmployeePromptForm,
     CustomPasswordChangeForm,
     EmployeeCreateForm,
 )
 from .permissions import demo_read_only, is_demo_user
 
+logger = logging.getLogger(__name__)
+
 
 def login_view(request):
-
     if request.method == "POST":
-
-        user = authenticate(
-            username=request.POST.get("username"),
-            password=request.POST.get("password"),
-        )
-
+        identifier = request.POST.get("username", "").strip()
+        username = identifier
+        user_model = get_user_model()
+        if not user_model.objects.filter(username__iexact=identifier).exists():
+            username = user_model.objects.filter(email__iexact=identifier).values_list("username", flat=True).first() or identifier
+        user = authenticate(username=username, password=request.POST.get("password"))
         if user:
-
             login(request, user)
-
             return redirect("dashboard")
-
         messages.error(request, "Invalid Username or Password")
 
     return render(request, "login.html")
 
 
+@require_POST
 def logout_view(request):
-
     logout(request)
-
     return redirect("login")
 
 
@@ -133,24 +145,139 @@ def demo_login_view(request):
 
 
 def signup_view(request):
+    messages.info(request, "ERP access is managed by your company. Contact your administrator for an account.")
+    return redirect("login")
 
-    form = UserCreationForm(request.POST or None)
 
-    if request.method == "POST":
+def _invitation_token_hash(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
-        if form.is_valid():
 
-            form.save()
+def _issue_employee_invitation(employee):
+    token = secrets.token_urlsafe(32)
+    now = timezone.now()
+    invitation, _ = EmployeeInvitation.objects.update_or_create(
+        employee=employee,
+        defaults={
+            "token_hash": _invitation_token_hash(token),
+            "created_at": now,
+            "expires_at": now + timedelta(hours=getattr(settings, "EMPLOYEE_INVITATION_EXPIRY_HOURS", 72)),
+            "accepted_at": None,
+        },
+    )
+    return invitation, token
 
-            messages.success(request, "Account Created Successfully")
 
-            return redirect("login")
+def _send_employee_invitation(request, employee, token):
+    activation_url = request.build_absolute_uri(
+        reverse(
+            "employee_activate",
+            kwargs={"uidb64": urlsafe_base64_encode(force_bytes(employee.user_id)), "token": token},
+        )
+    )
+    expiry_hours = getattr(settings, "EMPLOYEE_INVITATION_EXPIRY_HOURS", 72)
+    subject = "Activate your ERP Suite account"
+    body = (
+        f"Hello {employee.user.get_full_name() or employee.name},\n\n"
+        "Your company has created an ERP Suite account for you. "
+        "Use the secure link below to set your password and activate your account:\n\n"
+        f"{activation_url}\n\n"
+        f"This link expires in {expiry_hours} hours and can only be used once. "
+        "If you were not expecting this invitation, contact your company administrator."
+    )
 
-    return render(request, "signup.html", {"form": form})
+    try:
+        sent = send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [employee.user.email], fail_silently=False)
+    except Exception:
+        logger.exception("Unable to send ERP invitation to employee %s", employee.pk)
+        return "failed"
+
+    if not sent:
+        return "failed"
+    if settings.EMAIL_BACKEND.endswith("console.EmailBackend"):
+        return "console"
+    return "sent"
+
+
+def employee_activate(request, uidb64, token):
+    user_model = get_user_model()
+    try:
+        user_id = force_str(urlsafe_base64_decode(uidb64))
+        employee = Employee.objects.select_related("user").get(user_id=user_id)
+        invitation = employee.invitation
+    except (ValueError, TypeError, OverflowError, user_model.DoesNotExist, Employee.DoesNotExist, ObjectDoesNotExist):
+        return render(request, "employee_invitation_invalid.html", status=400)
+
+    def is_valid_invitation(current_employee, current_invitation, current_user):
+        return (
+            current_invitation.accepted_at is None
+            and current_invitation.expires_at > timezone.now()
+            and current_employee.employment_status == "Active"
+            and not current_user.is_active
+            and not current_user.has_usable_password()
+            and hmac.compare_digest(current_invitation.token_hash, _invitation_token_hash(token))
+        )
+
+    if not is_valid_invitation(employee, invitation, employee.user):
+        return render(request, "employee_invitation_invalid.html", status=400)
+
+    form = SetPasswordForm(employee.user, request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            invitation = EmployeeInvitation.objects.select_for_update().select_related("employee").get(pk=invitation.pk)
+            employee = Employee.objects.select_related("user").get(pk=employee.pk)
+            user = user_model.objects.select_for_update().get(pk=employee.user_id)
+            if not is_valid_invitation(employee, invitation, user):
+                return render(request, "employee_invitation_invalid.html", status=400)
+
+            user.set_password(form.cleaned_data["new_password1"])
+            user.is_active = True
+            user.save(update_fields=["password", "is_active"])
+            invitation.accepted_at = timezone.now()
+            invitation.save(update_fields=["accepted_at"])
+
+        messages.success(request, "Your account is active. Sign in with your new password.")
+        return redirect("login")
+
+    return render(request, "employee_invitation_activate.html", {
+        "form": form,
+        "employee": employee,
+        "expiry_hours": getattr(settings, "EMPLOYEE_INVITATION_EXPIRY_HOURS", 72),
+    })
 
 
 def _employee_status_label(user):
     return "Active" if getattr(user, "is_active", True) else "Inactive"
+
+
+def _employee_account_status(employee):
+    if employee.user.is_active:
+        return "Active"
+    try:
+        invitation = employee.invitation
+    except EmployeeInvitation.DoesNotExist:
+        return "Inactive"
+    if invitation.accepted_at is None and invitation.expires_at > timezone.now():
+        return "Invited"
+    return "Inactive"
+
+
+def _notify_admins(title, description, object_type, object_id, related_link):
+    admin_user_model = get_user_model()
+    notifications = [
+        Notification(
+            user=admin,
+            notification_type="employee_activity",
+            title=title,
+            description=description,
+            related_object_type=object_type,
+            related_object_id=object_id,
+            related_link=related_link,
+        )
+        for admin in admin_user_model.objects.filter(is_superuser=True, is_active=True)
+    ]
+    if notifications:
+        Notification.objects.bulk_create(notifications)
 
 
 def get_action_center_items(request):
@@ -246,70 +373,78 @@ def dashboard(request):
 
         if attendance is None:
 
-            Attendance.objects.create(
+            attendance = Attendance.objects.create(
                 employee=request.user,
                 date=today,
                 status="Present",
                 approval_status="Pending",
                 check_in=timezone.now().time()
             )
+            _notify_admins(
+                "Employee attendance submitted",
+                f"{request.user.get_full_name() or request.user.username} checked in for {today}.",
+                "attendance",
+                attendance.pk,
+                reverse("attendance_approvals"),
+            )
 
         elif attendance.check_out is None:
 
             attendance.check_out = timezone.now().time()
             attendance.save()
+            _notify_admins(
+                "Employee attendance updated",
+                f"{request.user.get_full_name() or request.user.username} checked out for {today}.",
+                "attendance",
+                attendance.pk,
+                reverse("attendance_approvals"),
+            )
 
         return redirect("dashboard")
 
-    total_employees = Employee.objects.count()
-    total_products = Product.objects.count()
-    total_customers = Customer.objects.count()
+    is_admin = request.user.is_superuser
+    leave_records = LeaveApplication.objects.all()
+    attendance_records = Attendance.objects.all()
+    activity_records = ActivityLog.objects.select_related('user').all()
+    if not is_admin:
+        leave_records = leave_records.filter(employee=request.user)
+        attendance_records = attendance_records.filter(employee=request.user)
+        activity_records = activity_records.filter(user=request.user)
 
-    total_leaves = LeaveApplication.objects.count()
-
-    pending_leaves = LeaveApplication.objects.filter(
-        status="Pending"
-    ).count()
-
-    total_attendance_today = Attendance.objects.filter(
-        date=today
-    ).count()
-
-    recent_leaves = LeaveApplication.objects.order_by("-id")[:5]
-
-    approved = LeaveApplication.objects.filter(
-        status="Approved"
-    ).count()
-
-    pending = LeaveApplication.objects.filter(
-        status="Pending"
-    ).count()
-
-    rejected = LeaveApplication.objects.filter(
-        status="Rejected"
-    ).count()
-
-    present = Attendance.objects.filter(
-        status="Present"
-    ).count()
-
-    absent = max(total_employees - present, 0)
-
-    pending_attendance_approvals = 0
-    if request.user.is_superuser:
-        pending_attendance_approvals = Attendance.objects.filter(
-            approval_status='Pending'
-        ).count()
+    total_employees = Employee.objects.count() if is_admin else 1
+    total_products = Product.objects.count() if is_admin else 0
+    total_customers = Customer.objects.count() if is_admin else 0
+    total_leaves = leave_records.count()
+    pending_leaves = leave_records.filter(status="Pending").count()
+    total_attendance_today = attendance_records.filter(date=today).count()
+    recent_leaves = leave_records.order_by("-id")[:5]
+    approved = leave_records.filter(status="Approved").count()
+    pending = leave_records.filter(status="Pending").count()
+    rejected = leave_records.filter(status="Rejected").count()
+    present = attendance_records.filter(status="Present").count()
+    absent = max(total_employees - present, 0) if is_admin else 0
+    pending_attendance_approvals = (
+        Attendance.objects.filter(approval_status='Pending').count() if is_admin else 0
+    )
 
     unread_notifications_count = request.user.notifications.filter(is_read=False).count()
-    inventory_summary = get_inventory_summary()
+    inventory_summary = get_inventory_summary() if is_admin else {}
 
-    if pending_leaves > 5:
+    if not is_admin:
+        if attendance is None:
+            insight = "Your attendance has not been marked for today."
+        elif pending_leaves:
+            insight = "You have leave requests awaiting review."
+        else:
+            insight = "Your attendance and leave status are up to date."
+    elif pending_leaves > 5:
         insight = "Multiple leave requests require approval."
     elif total_attendance_today < max(total_employees, 1):
         insight = "Attendance is lower than expected today."
     else:
         insight = "Business operations are running normally."
+
+    recent_activity = activity_records.order_by('-timestamp')[:6]
 
     context = {
         "attendance": attendance,
@@ -320,6 +455,7 @@ def dashboard(request):
         "pending_leaves": pending_leaves,
         "total_attendance_today": total_attendance_today,
         "recent_leaves": recent_leaves,
+        "recent_activity": recent_activity,
         "approved": approved,
         "pending": pending,
         "rejected": rejected,
@@ -364,6 +500,14 @@ def apply_leave(request):
             leave.status = "Pending"
 
             leave.save()
+
+            _notify_admins(
+                "Employee leave request submitted",
+                f"{request.user.get_full_name() or request.user.username} requested leave from {leave.start_date} to {leave.end_date}.",
+                "leave",
+                leave.pk,
+                reverse("view_leaves"),
+            )
 
             messages.success(
                 request,
@@ -595,6 +739,14 @@ def edit_profile(request):
                     })
             
             employee_form.save()
+            if not request.user.is_superuser:
+                _notify_admins(
+                    "Employee profile updated",
+                    f"{request.user.get_full_name() or request.user.username} updated their profile.",
+                    "employee",
+                    employee.pk,
+                    reverse("employee_detail", kwargs={"employee_id": employee.pk}),
+                )
             messages.success(request, "Your profile has been updated successfully!")
             return redirect("employee_profile")
     else:
@@ -631,7 +783,18 @@ def change_password_view(request):
 
 @login_required
 def employee_list(request):
-    employees = Employee.objects.select_related('user', 'department').all().order_by('name')
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can access the employee directory.')
+        return redirect('dashboard')
+
+    pending_invitation = EmployeeInvitation.objects.filter(
+        employee_id=OuterRef('pk'),
+        accepted_at__isnull=True,
+        expires_at__gt=timezone.now(),
+    )
+    employees = Employee.objects.select_related('user', 'department', 'invitation').annotate(
+        invitation_pending=Exists(pending_invitation)
+    ).order_by('name')
 
     query = request.GET.get('q', '').strip()
     department_id = request.GET.get('department', '')
@@ -647,8 +810,18 @@ def employee_list(request):
         )
     if department_id:
         employees = employees.filter(department_id=department_id)
-    if status:
-        employees = employees.filter(user__is_active=(status == 'Active'))
+    if status == 'Active':
+        employees = employees.filter(user__is_active=True)
+    elif status == 'Invited':
+        employees = employees.filter(
+            user__is_active=False,
+            employment_status='Active',
+            invitation_pending=True,
+        )
+    elif status == 'Inactive':
+        employees = employees.filter(user__is_active=False).filter(
+            Q(employment_status='Inactive') | Q(invitation_pending=False)
+        )
     if location:
         employees = employees.filter(location__icontains=location)
 
@@ -658,6 +831,9 @@ def employee_list(request):
         page_obj = paginator.page(page_number)
     except (EmptyPage, PageNotAnInteger):
         page_obj = paginator.page(1)
+
+    for employee in page_obj:
+        employee.account_status = _employee_account_status(employee)
 
     departments = Department.objects.all().order_by('name')
     return render(request, 'employee_list.html', {
@@ -685,8 +861,35 @@ def employee_detail(request, employee_id):
         'employee': employee,
         'attendance_records': attendance_records,
         'leave_records': leave_records,
-        'status_label': _employee_status_label(employee.user),
+        'status_label': _employee_account_status(employee),
+        'prompt_form': EmployeePromptForm() if request.user.is_superuser else None,
     })
+
+
+@login_required
+@demo_read_only
+@require_POST
+def send_employee_prompt(request, employee_id):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can send employee prompts.')
+        return redirect('dashboard')
+
+    employee = get_object_or_404(Employee.objects.select_related('user'), pk=employee_id)
+    form = EmployeePromptForm(request.POST)
+    if form.is_valid():
+        Notification.objects.create(
+            user=employee.user,
+            notification_type='admin_prompt',
+            title=form.cleaned_data['title'],
+            description=form.cleaned_data['message'],
+            related_object_type='employee',
+            related_object_id=employee.pk,
+            related_link=reverse('employee_profile'),
+        )
+        messages.success(request, f"Your message was sent to {employee.name}.")
+    else:
+        messages.error(request, 'Enter a subject and message before sending.')
+    return redirect('employee_detail', employee_id=employee.pk)
 
 
 @login_required
@@ -699,19 +902,35 @@ def employee_create(request):
     if request.method == 'POST':
         form = EmployeeCreateForm(request.POST, request.FILES)
         if form.is_valid():
-            user, employee = form.save()
-            messages.success(request, f'Employee {employee.name} created successfully.')
+            try:
+                with transaction.atomic():
+                    user, employee = form.save()
+                    invitation_token = None
+                    if employee.employment_status == 'Active':
+                        _, invitation_token = _issue_employee_invitation(employee)
+            except IntegrityError:
+                form.add_error(None, 'An account or employee ID with those details already exists.')
+            else:
+                if invitation_token:
+                    delivery = _send_employee_invitation(request, employee, invitation_token)
+                    if delivery == 'sent':
+                        messages.success(request, f'Employee {employee.name} was created and the invitation email was sent.')
+                    elif delivery == 'console':
+                        messages.info(request, 'Employee created. The invitation is printed to the development console; it was not sent to the recipient.')
+                    else:
+                        messages.warning(request, 'Employee created, but the invitation email could not be sent. Configure email and resend the invitation.')
+                else:
+                    messages.warning(request, 'Employee created as inactive. No activation invitation was sent.')
             return redirect('employee_detail', employee_id=employee.pk)
     else:
         form = EmployeeCreateForm(initial={
             'employment_status': 'Active',
-            'is_active': True,
         })
 
     return render(request, 'employee_form.html', {
         'form': form,
         'title': 'Add Employee',
-        'submit_label': 'Create Employee',
+    'submit_label': 'Create Employee & Send Invitation',
         'is_edit': False,
     })
 
@@ -727,24 +946,39 @@ def employee_edit(request, employee_id):
     if request.method == 'POST':
         form = EmployeeCreateForm(request.POST, request.FILES, instance=employee)
         if form.is_valid():
-            employee.user.first_name = form.cleaned_data['first_name'].strip()
-            employee.user.last_name = form.cleaned_data['last_name'].strip()
-            employee.user.email = form.cleaned_data['email'].strip()
-            employee.user.username = form.cleaned_data['username'].strip()
-            employee.user.is_active = form.cleaned_data.get('is_active', True)
-            employee.user.save(update_fields=['first_name', 'last_name', 'email', 'username', 'is_active'])
+            with transaction.atomic():
+                previous_email = employee.user.email
+                previous_employment_status = employee.employment_status
+                employee.user.first_name = form.cleaned_data['first_name'].strip()
+                employee.user.last_name = form.cleaned_data['last_name'].strip()
+                employee.user.email = form.cleaned_data['email'].strip()
+                employee.user.username = form.cleaned_data['username'].strip()
+                if form.cleaned_data['employment_status'] == 'Inactive':
+                    employee.user.is_active = False
+                employee.user.save(update_fields=['first_name', 'last_name', 'email', 'username', 'is_active'])
 
-            employee.name = f"{employee.user.first_name} {employee.user.last_name}".strip() or employee.user.username
-            employee.phone = form.cleaned_data.get('phone', '')
-            employee.position = form.cleaned_data['position']
-            employee.department = form.cleaned_data.get('department')
-            employee.joining_date = form.cleaned_data['joining_date']
-            employee.employee_id = form.cleaned_data['employee_id']
-            employee.location = form.cleaned_data.get('location', '')
-            employee.bio = form.cleaned_data.get('address', employee.bio)
-            if form.cleaned_data.get('profile_photo'):
-                employee.profile_photo = form.cleaned_data['profile_photo']
-            employee.save()
+                employee.name = f"{employee.user.first_name} {employee.user.last_name}".strip() or employee.user.username
+                employee.phone = form.cleaned_data.get('phone', '')
+                employee.date_of_birth = form.cleaned_data.get('date_of_birth')
+                employee.gender = form.cleaned_data.get('gender', '')
+                employee.position = form.cleaned_data['position']
+                employee.employment_status = form.cleaned_data['employment_status']
+                employee.department = form.cleaned_data.get('department')
+                employee.joining_date = form.cleaned_data['joining_date']
+                employee.employee_id = form.cleaned_data['employee_id']
+                employee.location = form.cleaned_data.get('location', '')
+                employee.bio = form.cleaned_data.get('address', employee.bio)
+                if form.cleaned_data.get('profile_photo'):
+                    employee.profile_photo = form.cleaned_data['profile_photo']
+                employee.save()
+                if (
+                    not employee.user.is_active
+                    and not employee.user.has_usable_password()
+                    and (previous_email != employee.user.email or previous_employment_status != employee.employment_status)
+                ):
+                    EmployeeInvitation.objects.filter(employee=employee, accepted_at__isnull=True).update(
+                        accepted_at=timezone.now()
+                    )
             messages.success(request, 'Employee details updated successfully.')
             return redirect('employee_detail', employee_id=employee.pk)
     else:
@@ -759,8 +993,9 @@ def employee_edit(request, employee_id):
             'department': employee.department,
             'position': employee.position,
             'joining_date': employee.joining_date,
-            'employment_status': 'Active' if employee.user.is_active else 'Inactive',
-            'is_active': employee.user.is_active,
+            'employment_status': employee.employment_status,
+            'date_of_birth': employee.date_of_birth,
+            'gender': employee.gender,
         })
 
     return render(request, 'employee_form.html', {
@@ -774,28 +1009,65 @@ def employee_edit(request, employee_id):
 
 @login_required
 @demo_read_only
+@require_POST
 def toggle_employee_status(request, employee_id):
     if not request.user.is_superuser:
         messages.error(request, 'Only administrators can activate or deactivate employees.')
         return redirect('dashboard')
 
     employee = get_object_or_404(Employee.objects.select_related('user'), pk=employee_id)
-    employee.user.is_active = not employee.user.is_active
+    if employee.user.is_active:
+        employee.user.is_active = False
+    elif employee.employment_status != 'Active':
+        messages.error(request, 'Set the employment status to Active before enabling this account.')
+        return redirect('employee_detail', employee_id=employee.pk)
+    elif not employee.user.has_usable_password():
+        messages.error(request, 'This account must be activated through its invitation link. Resend the invitation instead.')
+        return redirect('employee_detail', employee_id=employee.pk)
+    else:
+        employee.user.is_active = True
     employee.user.save(update_fields=['is_active'])
     messages.success(request, f"Employee status updated to {'Active' if employee.user.is_active else 'Inactive'}.")
     return redirect('employee_detail', employee_id=employee.pk)
 
 
 @login_required
-def product_list(request):
+@demo_read_only
+@require_POST
+def resend_employee_invitation(request, employee_id):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can resend employee invitations.')
+        return redirect('dashboard')
 
+    employee = get_object_or_404(Employee.objects.select_related('user'), pk=employee_id)
+    if employee.user.is_active or employee.user.has_usable_password() or employee.employment_status != 'Active':
+        messages.error(request, 'This employee is not eligible for an activation invitation.')
+        return redirect('employee_detail', employee_id=employee.pk)
+
+    invitation, token = _issue_employee_invitation(employee)
+    delivery = _send_employee_invitation(request, employee, token)
+    if delivery == 'sent':
+        messages.success(request, f'Invitation resent to {employee.user.email}.')
+    elif delivery == 'console':
+        messages.info(request, 'The new invitation is printed to the development console; it was not sent to the recipient.')
+    else:
+        messages.warning(request, 'The invitation could not be sent. Check email configuration and retry.')
+    return redirect('employee_detail', employee_id=employee.pk)
+
+
+@login_required
+def product_list(request):
+    query = request.GET.get('q', '').strip()
     products = Product.objects.all().order_by("name")
+    if query:
+        products = products.filter(name__icontains=query)
 
     return render(
         request,
         "product_list.html",
         {
             "products": products,
+            "query": query,
         },
     )
 
@@ -833,9 +1105,46 @@ def add_product(request):
 
 
 @login_required
-def customer_list(request):
+def order_list(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can view organization orders.')
+        return redirect('dashboard')
 
+    query = request.GET.get('q', '').strip()
+    orders = Order.objects.select_related('customer').prefetch_related('orderitem_set').order_by('-date', '-pk')
+    if query:
+        filters = Q(customer__name__icontains=query)
+        if query.isdigit():
+            filters |= Q(pk=int(query))
+        filters |= Q(orderitem__product__name__icontains=query)
+        orders = orders.filter(filters).distinct()
+    return render(request, 'order_list.html', {'orders': orders[:200], 'query': query})
+
+
+@login_required
+def payment_list(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can view organization payments.')
+        return redirect('dashboard')
+
+    query = request.GET.get('q', '').strip()
+    payments = Payment.objects.select_related('order__customer').order_by('-payment_date', '-pk')
+    if query:
+        filters = Q(order__customer__name__icontains=query) | Q(payment_method__icontains=query)
+        if query.isdigit():
+            filters |= Q(order_id=int(query)) | Q(pk=int(query))
+        payments = payments.filter(filters)
+    return render(request, 'payment_list.html', {'payments': payments[:200], 'query': query})
+
+
+@login_required
+def customer_list(request):
+    query = request.GET.get('q', '').strip()
     customers = Customer.objects.all().order_by("name")
+    if query:
+        customers = customers.filter(
+            Q(name__icontains=query) | Q(email__icontains=query) | Q(phone__icontains=query)
+        )
 
     return render(
         request,
@@ -897,6 +1206,14 @@ def upload_file(request):
 
             uploaded.save()
 
+            _notify_admins(
+                "Employee document uploaded",
+                f"{request.user.get_full_name() or request.user.username} uploaded {uploaded.file.name}.",
+                "document",
+                uploaded.pk,
+                reverse("upload_file"),
+            )
+
             messages.success(
                 request,
                 "Document uploaded successfully."
@@ -909,13 +1226,10 @@ def upload_file(request):
         form = FileUploadForm()
 
     if request.user.is_superuser:
-
         uploaded_files = UploadedFile.objects.all().order_by("-uploaded_at")
-
     else:
-
         uploaded_files = UploadedFile.objects.filter(
-            uploaded_by=request.user
+            Q(uploaded_by=request.user) | Q(uploaded_by__isnull=True)
         ).order_by("-uploaded_at")
 
     return render(
@@ -1058,6 +1372,7 @@ def notifications_list(request):
 
 
 @login_required
+@require_POST
 def mark_notification_read(request, notification_id):
     """Mark single notification as read"""
     notification = get_object_or_404(Notification, id=notification_id, user=request.user)
@@ -1065,13 +1380,18 @@ def mark_notification_read(request, notification_id):
     notification.save()
     
     # Redirect to related link if available
-    if notification.related_link:
+    if notification.related_link and url_has_allowed_host_and_scheme(
+        notification.related_link,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
         return redirect(notification.related_link)
     
     return redirect('notifications_list')
 
 
 @login_required
+@require_POST
 def mark_all_notifications_read(request):
     """Mark all notifications as read"""
     request.user.notifications.filter(is_read=False).update(is_read=True)
@@ -1091,6 +1411,8 @@ def global_search(request):
         'leaves': [],
         'attendance': [],
         'documents': [],
+        'orders': [],
+        'payments': [],
     }
     
     query = request.GET.get('q', '').strip()
@@ -1098,8 +1420,13 @@ def global_search(request):
     if query and len(query) >= 2:
         # Search employees
         if request.user.is_superuser:
-            results['employees'] = Employee.objects.filter(
-                Q(name__icontains=query) | Q(user__username__icontains=query)
+            results['employees'] = Employee.objects.select_related('user').filter(
+                Q(name__icontains=query) |
+                Q(employee_id__icontains=query) |
+                Q(position__icontains=query) |
+                Q(user__username__icontains=query) |
+                Q(user__first_name__icontains=query) |
+                Q(user__last_name__icontains=query)
             )[:10]
         
         # Search products
@@ -1114,29 +1441,35 @@ def global_search(request):
             )[:10]
         
         # Search leave applications
+        leave_query = Q(leave_type__icontains=query) | Q(status__icontains=query) | Q(reason__icontains=query)
         if request.user.is_superuser:
-            results['leaves'] = LeaveApplication.objects.filter(
-                Q(employee__username__icontains=query)
-            )[:10]
+            leave_query |= Q(employee__username__icontains=query) | Q(employee__first_name__icontains=query) | Q(employee__last_name__icontains=query)
+            results['leaves'] = LeaveApplication.objects.filter(leave_query).select_related('employee')[:10]
         else:
-            results['leaves'] = LeaveApplication.objects.filter(
-                employee=request.user
-            )[:10]
+            results['leaves'] = LeaveApplication.objects.filter(employee=request.user).filter(leave_query)[:10]
         
         # Search attendance
+        attendance_query = Q(status__icontains=query) | Q(approval_status__icontains=query)
         if request.user.is_superuser:
-            results['attendance'] = Attendance.objects.filter(
-                Q(employee__username__icontains=query)
-            )[:10]
+            attendance_query |= Q(employee__username__icontains=query) | Q(employee__first_name__icontains=query) | Q(employee__last_name__icontains=query)
+            results['attendance'] = Attendance.objects.filter(attendance_query).select_related('employee')[:10]
         else:
-            results['attendance'] = Attendance.objects.filter(
-                employee=request.user
-            )[:10]
+            results['attendance'] = Attendance.objects.filter(employee=request.user).filter(attendance_query)[:10]
         
         # Search uploaded files
-        results['documents'] = UploadedFile.objects.filter(
-            file__icontains=query
-        )[:10]
+        documents = UploadedFile.objects.filter(file__icontains=query)
+        if not request.user.is_superuser:
+            documents = documents.filter(uploaded_by=request.user)
+        results['documents'] = documents[:10]
+
+        if request.user.is_superuser:
+            order_query = Q(customer__name__icontains=query) | Q(orderitem__product__name__icontains=query)
+            payment_query = Q(order__customer__name__icontains=query) | Q(payment_method__icontains=query)
+            if query.isdigit():
+                order_query |= Q(pk=int(query))
+                payment_query |= Q(order_id=int(query)) | Q(pk=int(query))
+            results['orders'] = Order.objects.filter(order_query).select_related('customer').distinct()[:10]
+            results['payments'] = Payment.objects.filter(payment_query).select_related('order__customer')[:10]
     
     context = {
         'query': query,

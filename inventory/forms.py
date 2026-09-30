@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import PasswordChangeForm
+from django.db import transaction
 from .models import Product, Customer, LeaveApplication, UploadedFile, Employee
 
 
@@ -60,8 +61,6 @@ class EmployeeCreateForm(forms.Form):
     last_name = forms.CharField(max_length=50, required=True)
     username = forms.CharField(max_length=150, required=True)
     email = forms.EmailField(required=True)
-    password1 = forms.CharField(widget=forms.PasswordInput, required=True)
-    password2 = forms.CharField(widget=forms.PasswordInput, required=True)
     phone = forms.CharField(max_length=20, required=False)
     date_of_birth = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
     gender = forms.ChoiceField(choices=[('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')], required=False)
@@ -72,7 +71,6 @@ class EmployeeCreateForm(forms.Form):
     position = forms.CharField(max_length=100, required=True)
     joining_date = forms.DateField(required=True, widget=forms.DateInput(attrs={'type': 'date'}))
     employment_status = forms.ChoiceField(choices=[('Active', 'Active'), ('Inactive', 'Inactive')], initial='Active')
-    is_active = forms.BooleanField(required=False, initial=True)
     profile_photo = forms.ImageField(required=False)
 
     def __init__(self, *args, **kwargs):
@@ -85,7 +83,7 @@ class EmployeeCreateForm(forms.Form):
             elif isinstance(field, (forms.Select, forms.SelectMultiple)):
                 field.widget.attrs.update({'class': 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20'})
             elif isinstance(field, forms.FileInput):
-                field.widget.attrs.update({'class': 'block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white'})
+                field.widget.attrs.update({'class': 'block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white'})
             elif isinstance(field, forms.Textarea):
                 field.widget.attrs.update({'class': 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20'})
             else:
@@ -113,37 +111,58 @@ class EmployeeCreateForm(forms.Form):
         return employee_id
 
     def clean(self):
-        cleaned_data = super().clean()
-        password1 = cleaned_data.get('password1')
-        password2 = cleaned_data.get('password2')
-        if password1 and password2 and password1 != password2:
-            self.add_error('password2', 'Passwords do not match.')
-        return cleaned_data
+        return super().clean()
 
     def save(self):
-        user = User.objects.create_user(
-            username=self.cleaned_data['username'].strip(),
-            first_name=self.cleaned_data['first_name'].strip(),
-            last_name=self.cleaned_data['last_name'].strip(),
-            email=self.cleaned_data['email'].strip(),
-            password=self.cleaned_data['password1'],
-            is_active=self.cleaned_data.get('is_active', True),
-        )
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=self.cleaned_data['username'].strip(),
+                first_name=self.cleaned_data['first_name'].strip(),
+                last_name=self.cleaned_data['last_name'].strip(),
+                email=self.cleaned_data['email'].strip(),
+                password=None,
+                is_active=False,
+            )
 
-        employee = Employee.objects.create(
-            user=user,
-            name=f"{self.cleaned_data['first_name'].strip()} {self.cleaned_data['last_name'].strip()}".strip() or user.username,
-            phone=self.cleaned_data.get('phone', ''),
-            position=self.cleaned_data['position'],
-            department=self.cleaned_data.get('department'),
-            salary=0.00,
-            joining_date=self.cleaned_data['joining_date'],
-            employee_id=self.cleaned_data['employee_id'],
-            location=self.cleaned_data.get('location', ''),
-            bio=self.cleaned_data.get('address', ''),
-            profile_photo=self.cleaned_data.get('profile_photo'),
-        )
+            employee, _ = Employee.objects.get_or_create(
+                user=user,
+                defaults={
+                    'name': user.get_full_name().strip() or user.username,
+                    'position': self.cleaned_data['position'],
+                    'salary': 0.00,
+                    'joining_date': self.cleaned_data['joining_date'],
+                },
+            )
+            employee.name = user.get_full_name().strip() or user.username
+            employee.phone = self.cleaned_data.get('phone', '')
+            employee.date_of_birth = self.cleaned_data.get('date_of_birth')
+            employee.gender = self.cleaned_data.get('gender', '')
+            employee.position = self.cleaned_data['position']
+            employee.employment_status = self.cleaned_data['employment_status']
+            employee.department = self.cleaned_data.get('department')
+            employee.salary = 0.00
+            employee.joining_date = self.cleaned_data['joining_date']
+            employee.employee_id = self.cleaned_data['employee_id']
+            employee.location = self.cleaned_data.get('location', '')
+            employee.bio = self.cleaned_data.get('address', '')
+            employee.profile_photo = self.cleaned_data.get('profile_photo')
+            employee.save()
         return user, employee
+
+
+class EmployeePromptForm(forms.Form):
+    title = forms.CharField(max_length=200, label="Subject")
+    message = forms.CharField(
+        max_length=3000,
+        label="Message or request",
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+
+    def clean_title(self):
+        return self.cleaned_data["title"].strip()
+
+    def clean_message(self):
+        return self.cleaned_data["message"].strip()
 
 
 class EmployeeProfileForm(forms.ModelForm):

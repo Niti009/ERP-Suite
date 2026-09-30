@@ -22,7 +22,7 @@ INSTALLED_APPS = [
 
 
     # Your app(s)
-    'inventory',  # replace with your actual app name
+    'inventory.apps.InventoryConfig',
 ]
 
 MIDDLEWARE = [
@@ -122,3 +122,4 @@ else:
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@erpsuite.com')
+EMPLOYEE_INVITATION_EXPIRY_HOURS = int(os.environ.get('EMPLOYEE_INVITATION_EXPIRY_HOURS', '72'))

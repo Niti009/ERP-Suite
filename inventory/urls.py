@@ -6,6 +6,7 @@ from django.contrib.auth.views import (
     PasswordResetConfirmView,
     PasswordResetCompleteView,
 )
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
@@ -14,6 +15,8 @@ urlpatterns = [
     path('demo-login/', views.demo_login_view, name='demo_login'),
     path('logout/', views.logout_view, name='logout'),
     path('signup/', views.signup_view, name='signup'),
+    path('employees/activate/<uidb64>/<str:token>/', views.employee_activate, name='employee_activate'),
+    path('employees/', RedirectView.as_view(pattern_name='employee_list', permanent=False, query_string=True), name='employees_shortcut'),
 
     # Password Reset URLs (Django built-in)
     path('password-reset/', PasswordResetView.as_view(template_name='password_reset_form.html'), name='password_reset'),
@@ -29,8 +32,10 @@ urlpatterns = [
     path('people/employees/', views.employee_list, name='employee_list'),
     path('people/employees/add/', views.employee_create, name='employee_create'),
     path('people/employees/<int:employee_id>/', views.employee_detail, name='employee_detail'),
+    path('people/employees/<int:employee_id>/prompt/', views.send_employee_prompt, name='send_employee_prompt'),
     path('people/employees/<int:employee_id>/edit/', views.employee_edit, name='employee_edit'),
     path('people/employees/<int:employee_id>/toggle-status/', views.toggle_employee_status, name='toggle_employee_status'),
+    path('people/employees/<int:employee_id>/resend-invitation/', views.resend_employee_invitation, name='resend_employee_invitation'),
 
     path('leave/apply/', views.apply_leave, name='apply_leave'),
     path('leave/view/', views.view_leaves, name='view_leaves'),
@@ -46,6 +51,8 @@ urlpatterns = [
     path('products/', views.product_list, name='product_list'),
     path('products/add/', views.add_product, name='add_product'),
     path('inventory/', views.inventory_dashboard, name='inventory_dashboard'),
+    path('orders/', views.order_list, name='order_list'),
+    path('payments/', views.payment_list, name='payment_list'),
 
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/add/', views.add_customer, name='add_customer'),
