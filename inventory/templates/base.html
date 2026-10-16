@@ -502,7 +502,7 @@
     <div class="main-shell">
         <header class="topbar">
             <div class="topbar-left">
-                <button class="btn btn-secondary mobile-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation" onclick="toggleSidebar()"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+                <button class="btn btn-secondary mobile-toggle" id="mobile-nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation" title="Open navigation" onclick="toggleSidebar()"><i class="fa-solid fa-bars" aria-hidden="true"></i><span class="mobile-toggle-label">Menu</span></button>
                 <a class="topbar-brand" href="{% url 'dashboard' %}" aria-label="ERP Suite home">
                     <span class="topbar-brand-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
                     <span>ERP Suite</span>
@@ -581,10 +581,19 @@
         const sidebar = document.getElementById('sidebar');
         const backdrop = document.getElementById('sidebar-backdrop');
         const toggle = document.querySelector('.mobile-toggle');
+        if (!sidebar || !backdrop || !toggle) return;
         sidebar.classList.toggle('open', isOpen);
         backdrop.classList.toggle('is-visible', isOpen);
         toggle.setAttribute('aria-expanded', String(isOpen));
         toggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+        toggle.setAttribute('title', isOpen ? 'Close navigation' : 'Open navigation');
+        const icon = toggle.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-bars', !isOpen);
+            icon.classList.toggle('fa-xmark', isOpen);
+        }
+        const label = toggle.querySelector('.mobile-toggle-label');
+        if (label) label.textContent = isOpen ? 'Close' : 'Menu';
     }
 
     function toggleSidebar() {
