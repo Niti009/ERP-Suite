@@ -26,10 +26,10 @@
             --accent-soft: #eef2ff;
             --violet: #6d5ef7;
             --lavender: #e9e7ff;
-            --success: #1e9d68;
-            --warning: #c77d1d;
-            --danger: #d64545;
-            --info: #3b82f6;
+            --success: #067647;
+            --warning: #92400e;
+            --danger: #b42318;
+            --info: #175cd3;
             --shadow: 0 18px 42px rgba(15, 23, 42, .08);
             --shadow-soft: 0 10px 22px rgba(79, 70, 229, .08);
         }
@@ -46,12 +46,17 @@
         }
         a { text-decoration: none; color: inherit; }
         h1, h2, h3, h4, h5, h6 {
-            font-family: "Space Grotesk", "DM Sans", sans-serif;
             margin: 0;
+            font-family: "Space Grotesk", "DM Sans", sans-serif;
             letter-spacing: -0.03em;
             line-height: 1.15;
             color: var(--primary);
         }
+        .text-white h1, .text-white h2, .text-white h3, .text-white h4,
+        .text-white h5, .text-white h6 { color: #ffffff !important; }
+        .bg-slate-800 th { color: #f8fafc !important; }
+        .bg-green-600 { background-color: #166534 !important; }
+        .hover\:bg-green-700:hover { background-color: #14532d !important; }
         .app-shell {
             display: flex;
             min-height: 100vh;
@@ -69,6 +74,8 @@
             overflow-y: auto;
             flex-shrink: 0;
         }
+        .sidebar-close { display:none; }
+        .sidebar-backdrop { display:none; }
         .brand {
             display: flex;
             align-items: center;
@@ -86,6 +93,8 @@
         }
         .brand-copy h2 { margin: 0; font-size: 1.1rem; }
         .brand-copy p { margin: 2px 0 0; color: #b7c2e6; font-size: .72rem; }
+        .sidebar .brand-copy h2 { color: #f8fafc; }
+        .sidebar .brand-copy p { color: #cbd5e1; }
         .nav-group { margin-bottom: 18px; }
         .nav-label {
             display: block; color: #9aa7d0; text-transform: uppercase;
@@ -150,6 +159,11 @@
         }
         .topbar-left { display:flex; align-items:center; gap:12px; }
         .mobile-toggle { display:none; }
+        .topbar-brand { display:none; align-items:center; gap:8px; color:var(--primary); font-weight:750; white-space:nowrap; }
+        .topbar-brand-icon {
+            width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;
+            border-radius:9px; color:#fff; background:linear-gradient(135deg, #4f46e5, #4338ca);
+        }
         .search-form { position: relative; min-width: 260px; }
         .search-form input {
             width: 100%; padding: 10px 14px 10px 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel-soft); font-size: .92rem; color: var(--text);
@@ -275,7 +289,27 @@
         .notification-link { position: relative; }
         .breadcrumb a { color: var(--muted); }
         .breadcrumb a:hover { color: var(--accent-strong); }
+        .text-link { color: var(--accent-strong); font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
         .breadcrumb [aria-current="page"] { color: var(--primary); font-weight: 650; }
+        a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible,
+        select:focus-visible, textarea:focus-visible {
+            outline: 3px solid #818cf8;
+            outline-offset: 2px;
+        }
+        input::placeholder, textarea::placeholder { color: #667085; opacity: 1; }
+        input:disabled, select:disabled, textarea:disabled {
+            color: #667085;
+            background: #eef1f7;
+            opacity: 1;
+        }
+        .field-error, .errorlist { color: #b42318; font-size: .86rem; }
+        .errorlist { margin: 4px 0 0; padding-left: 18px; }
+        .dashboard-columns { grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); }
+        .dashboard-columns--equal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .dashboard-navigation { display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:10px; }
+        .dashboard-navigation .btn { justify-content:flex-start; min-height:44px; }
+        .nav-item.active { font-weight: 700; }
+        .table-wrap { max-width: 100%; }
 
         /* Align Tailwind-based module templates with the shared ERP tokens. */
         .bg-blue-600 { background-color: var(--accent) !important; }
@@ -284,6 +318,9 @@
         .border-blue-600 { border-color: var(--accent) !important; }
         .bg-purple-600 { background-color: var(--accent-strong) !important; }
         .text-purple-600 { color: var(--accent-strong) !important; }
+        .text-gray-400 { color: #667085 !important; }
+        .text-gray-500 { color: #586174 !important; }
+        .text-gray-600 { color: #424b5d !important; }
         .rounded-3xl { border-radius: 18px !important; }
         .rounded-2xl { border-radius: 14px !important; }
         .rounded-xl { border-radius: 10px !important; }
@@ -291,23 +328,48 @@
         .text-4xl { font-size: 2rem !important; line-height: 1.2 !important; }
         .text-3xl { font-size: 1.65rem !important; line-height: 1.25 !important; }
         @media (max-width: 1024px) {
-            .sidebar { position: fixed; left:0; top:0; transform: translateX(-101%); transition: transform .2s ease; z-index: 50; box-shadow: 0 20px 40px rgba(15,23,42,.24); }
+            .sidebar { width:min(280px, calc(100vw - 56px)); position: fixed; left:0; top:0; transform: translateX(-101%); transition: transform .2s ease; z-index: 50; box-shadow: 0 20px 40px rgba(15,23,42,.24); }
             .sidebar.open { transform: translateX(0); }
+            .sidebar-close { display:inline-flex; width:36px; height:36px; flex:0 0 36px; align-items:center; justify-content:center; border:1px solid rgba(203,213,225,.35); border-radius:10px; background:rgba(255,255,255,.08); color:#f8fafc; cursor:pointer; }
+            .sidebar-close:hover { background:rgba(255,255,255,.16); }
+            .sidebar-backdrop.is-visible { display:block; position:fixed; inset:0; z-index:49; width:100%; height:100%; border:0; background:rgba(15,23,42,.48); }
             .mobile-toggle { display:inline-flex; }
+            .topbar-brand { display:inline-flex; }
+            .topbar-left { min-width:0; flex:1; }
+            .search-form { flex:1; min-width:0; }
             .topbar { padding: 12px 18px; }
             .content { padding: 18px 10px 10px; }
+            .dashboard-columns { grid-template-columns: minmax(0, 1fr); }
         }
         @media (max-width: 720px) {
             .form-grid { grid-template-columns: 1fr; }
             .page-header-row { flex-direction: column; align-items: flex-start; }
-            .search-form { min-width: 0; width: min(42vw, 240px); }
+            .page-header h1 { font-size: clamp(1.4rem, 5vw, 1.8rem); overflow-wrap: anywhere; }
+            .page-header p { font-size: .9rem; }
+            .page-header { margin-bottom: 14px; }
+            .search-form { min-width: 0; width: min(32vw, 220px); }
             .header-actions { display:flex; gap:8px; }
             .profile-name, .profile-role, .dashboard-label { display:none; }
             .profile-chip { padding: 4px; }
             .icon-btn { width: 38px; height: 38px; }
             .topbar { gap: 8px; }
+            .topbar-left { gap:6px; }
+            .topbar-brand { gap:5px; font-size:.82rem; }
+            .topbar-brand-icon { width:27px; height:27px; }
             .main-shell { padding: 8px 8px 16px; }
             .summary-grid { grid-template-columns: 1fr; }
+            .card-grid { gap: 12px; }
+            .dashboard-columns--equal { grid-template-columns: minmax(0, 1fr); }
+            .card { padding: 15px; border-radius: 15px; }
+            .metric-value { font-size: clamp(1.5rem, 7vw, 2rem); overflow-wrap: anywhere; }
+            .header-actions--page { flex-wrap: wrap; width: 100%; }
+            .btn { min-height: 40px; }
+            table { min-width: 680px; }
+            .empty-state { padding: 30px 16px; }
+        }
+        @media (max-width: 400px) {
+            .search-form { display:none; }
+            .topbar { padding:10px 12px; }
         }
     </style>
 </head>
@@ -315,11 +377,14 @@
 <div class="app-shell">
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-            <div class="brand-badge"><i class="fa-solid fa-layer-group"></i></div>
-            <div class="brand-copy">
-                <h2>ERP Suite</h2>
-                <p>Operations</p>
+            <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                <div class="brand-badge"><i class="fa-solid fa-layer-group"></i></div>
+                <div class="brand-copy">
+                    <h2>ERP Suite</h2>
+                    <p>Operations</p>
+                </div>
             </div>
+            <button class="sidebar-close" type="button" aria-label="Close navigation" title="Close navigation" onclick="closeSidebar()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </div>
 
         <div class="nav-group">
@@ -332,19 +397,23 @@
 
         <div class="nav-group">
             <span class="nav-label">My Work</span>
-            <a class="nav-item {% if request.resolver_match.url_name == 'employee_profile' %}active{% endif %}" href="{% url 'employee_profile' %}">
+            <a class="nav-item {% if request.resolver_match.url_name == 'employee_profile' or request.resolver_match.url_name == 'edit_profile' or request.resolver_match.url_name == 'change_password' %}active{% endif %}" href="{% url 'employee_profile' %}">
                 <span class="nav-icon"><i class="fa-solid fa-user"></i></span>
                 <span>My Profile</span>
             </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'attendance_history' %}active{% endif %}" href="{% url 'attendance_history' %}">
-                <span class="nav-icon"><i class="fa-solid fa-clock"></i></span>
-                <span>My Attendance</span>
-            </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'view_leaves' %}active{% endif %}" href="{% url 'view_leaves' %}">
-                <span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
-                <span>My Leave</span>
-            </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'notifications_list' %}active{% endif %}" href="{% url 'notifications_list' %}">
+            {% if not request.user.is_superuser %}
+                <a class="nav-item {% if request.resolver_match.url_name == 'attendance_history' %}active{% endif %}" href="{% url 'attendance_history' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-clock"></i></span>
+                    <span>My Attendance</span>
+                </a>
+            {% endif %}
+            {% if not request.user.is_superuser %}
+                <a class="nav-item {% if request.resolver_match.url_name == 'view_leaves' or request.resolver_match.url_name == 'apply_leave' %}active{% endif %}" href="{% url 'view_leaves' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
+                    <span>My Leave</span>
+                </a>
+            {% endif %}
+            <a class="nav-item {% if request.resolver_match.url_name == 'notifications_list' or request.resolver_match.url_name == 'mark_notification_read' or request.resolver_match.url_name == 'mark_all_notifications_read' %}active{% endif %}" href="{% url 'notifications_list' %}">
                 <span class="nav-icon"><i class="fa-solid fa-bell"></i></span>
                 <span>My Notifications</span>
             </a>
@@ -357,20 +426,28 @@
                     <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
                     <span>Employees</span>
                 </a>
-                <a class="nav-item {% if request.resolver_match.url_name == 'attendance_approvals' %}active{% endif %}" href="{% url 'attendance_approvals' %}">
+                <a class="nav-item {% if request.resolver_match.url_name == 'attendance_history' %}active{% endif %}" href="{% url 'attendance_history' %}">
                     <span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span>
-                    <span>Attendance</span>
+                    <span>Attendance History</span>
+                </a>
+                <a class="nav-item {% if request.resolver_match.url_name == 'attendance_approvals' or request.resolver_match.url_name == 'approve_attendance' or request.resolver_match.url_name == 'reject_attendance' %}active{% endif %}" href="{% url 'attendance_approvals' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                    <span>Attendance Approvals</span>
                 </a>
                 <a class="nav-item {% if request.resolver_match.url_name == 'leave_calendar' %}active{% endif %}" href="{% url 'leave_calendar' %}">
                     <span class="nav-icon"><i class="fa-solid fa-calendar-week"></i></span>
-                    <span>Leave Management</span>
+                    <span>Leave Calendar</span>
+                </a>
+                <a class="nav-item {% if request.resolver_match.url_name == 'view_leaves' or request.resolver_match.url_name == 'approve_leave' or request.resolver_match.url_name == 'reject_leave' %}active{% endif %}" href="{% url 'view_leaves' %}">
+                    <span class="nav-icon"><i class="fa-solid fa-calendar-check"></i></span>
+                    <span>Leave Requests</span>
                 </a>
             </div>
         {% endif %}
 
         <div class="nav-group">
             <span class="nav-label">Operations</span>
-            <a class="nav-item {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}" href="{% url 'product_list' %}">
+            <a class="nav-item {% if request.resolver_match.url_name == 'product_list' or request.resolver_match.url_name == 'add_product' %}active{% endif %}" href="{% url 'product_list' %}">
                 <span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
                 <span>Products</span>
             </a>
@@ -378,7 +455,7 @@
                 <span class="nav-icon"><i class="fa-solid fa-warehouse"></i></span>
                 <span>Inventory</span>
             </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}" href="{% url 'customer_list' %}">
+            <a class="nav-item {% if request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'add_customer' %}active{% endif %}" href="{% url 'customer_list' %}">
                 <span class="nav-icon"><i class="fa-solid fa-user-tie"></i></span>
                 <span>Customers</span>
             </a>
@@ -387,7 +464,7 @@
                     <span class="nav-icon"><i class="fa-solid fa-receipt"></i></span>
                     <span>Orders</span>
                 </a>
-                <a class="nav-item {% if request.resolver_match.url_name == 'payment_list' %}active{% endif %}" href="{% url 'payment_list' %}">
+                <a class="nav-item {% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_create' or request.resolver_match.url_name == 'payment_detail' %}active{% endif %}" href="{% url 'payment_list' %}">
                     <span class="nav-icon"><i class="fa-solid fa-credit-card"></i></span>
                     <span>Payments</span>
                 </a>
@@ -420,11 +497,16 @@
             </div>
         </div>
     </aside>
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation" tabindex="-1" onclick="closeSidebar()"></button>
 
     <div class="main-shell">
         <header class="topbar">
             <div class="topbar-left">
-                <button class="btn btn-secondary mobile-toggle" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fa-solid fa-bars"></i></button>
+                <button class="btn btn-secondary mobile-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation" onclick="toggleSidebar()"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+                <a class="topbar-brand" href="{% url 'dashboard' %}" aria-label="ERP Suite home">
+                    <span class="topbar-brand-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
+                    <span>ERP Suite</span>
+                </a>
                 <form class="search-form" action="{% url 'global_search' %}" method="get">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search employees, products, documents..." aria-label="Global search" />
@@ -494,5 +576,31 @@
         </main>
     </div>
 </div>
+<script>
+    function setSidebarOpen(isOpen) {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        const toggle = document.querySelector('.mobile-toggle');
+        sidebar.classList.toggle('open', isOpen);
+        backdrop.classList.toggle('is-visible', isOpen);
+        toggle.setAttribute('aria-expanded', String(isOpen));
+        toggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+    }
+
+    function toggleSidebar() {
+        setSidebarOpen(!document.getElementById('sidebar').classList.contains('open'));
+    }
+
+    function closeSidebar() {
+        setSidebarOpen(false);
+    }
+
+    document.querySelectorAll('#sidebar .nav-item').forEach((link) => {
+        link.addEventListener('click', closeSidebar);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeSidebar();
+    });
+</script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-{% extends "inventory/base.html" %}
+{% extends "base.html" %}
 {% block content %}
 <h2 class="mb-4">Welcome, {{ user.username }}</h2>
 
@@ -14,7 +14,7 @@
         </a>
     </div>
     <div class="col-md-4 mb-3">
-        <a href="{% url 'leave_list' %}" class="text-decoration-none">
+        <a href="{% url 'view_leaves' %}" class="text-decoration-none">
             <div class="card bg-success text-white shadow">
                 <div class="card-body">
                     <h5 class="card-title">Leave Requests</h5>
@@ -24,11 +24,11 @@
         </a>
     </div>
     <div class="col-md-4 mb-3">
-        <a href="{% url 'export_csv' %}" class="text-decoration-none">
+        <a href="{% url 'customer_list' %}" class="text-decoration-none">
             <div class="card bg-warning text-dark shadow">
                 <div class="card-body">
-                    <h5 class="card-title">Export CSV</h5>
-                    <p class="card-text">Download product list.</p>
+                    <h5 class="card-title">Customers</h5>
+                    <p class="card-text">View customer records.</p>
                 </div>
             </div>
         </a>

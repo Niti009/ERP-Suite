@@ -19,13 +19,13 @@
         .btn {
             padding: 6px 12px;
             border: none;
-            background-color: #4CAF50;
+            background-color: #166534;
             color: white;
             text-decoration: none;
             cursor: pointer;
         }
         .btn.pending {
-            background-color: #f39c12;
+            background-color: #92400e;
         }
     </style>
 </head>
@@ -45,8 +45,11 @@
             <td>{{ leave.reason }}</td>
             <td>{{ leave.status }}</td>
             <td>
-                {% if user.is_staff and leave.status == "Pending" %}
-                    <a href="{% url 'leave_approve' leave.id %}" class="btn">Approve</a>
+                {% if user.is_superuser and leave.status == "Pending" %}
+                    <form method="post" action="{% url 'approve_leave' leave.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn">Approve</button>
+                    </form>
                 {% elif leave.status == "Pending" %}
                     <span class="btn pending">Pending</span>
                 {% else %}

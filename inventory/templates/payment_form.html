@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Record received payment{% endblock %}
+{% block page_title %}Record a payment{% endblock %}
+{% block page_subtitle %}Log money a customer has already paid and update their order balance.{% endblock %}
+{% block header_actions %}
+    <a class="btn btn-secondary" href="{% url 'payment_list' %}"><i class="fa-solid fa-arrow-left"></i> Back to payments</a>
+{% endblock %}
+
+{% block content %}
+<section class="card" style="max-width:820px;">
+    {% if not form.fields.order.queryset.exists %}
+        <div class="alert alert-info">There are no unpaid orders yet. Create a customer order first, then record their payment here.</div>
+        <a href="{% url 'order_create' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Create an order</a>
+    {% else %}
+        <div class="alert alert-info" style="grid-column:1/-1;">
+            Record a payment you have received in person or through your existing payment service. This form does not charge the customer.
+        </div>
+        <form method="post" class="form-grid" id="payment-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="field-error" style="grid-column:1/-1;">{{ form.non_field_errors }}</div>{% endif %}
+            {% for field in form %}
+                <div class="field-group" data-form-field="{{ field.name }}" {% if field.name == "order" %}style="grid-column:1/-1;"{% elif field.name == "other_payment_method" %}style="display:none;"{% endif %}>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="payment-balance" id="payment-balance" role="status" aria-live="polite" hidden></div>
+            <div class="header-actions--page" style="grid-column:1/-1;">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Save received payment</button>
+                <a href="{% url 'order_list' %}" class="btn btn-secondary">View orders</a>
+            </div>
+        </form>
+    {% endif %}
+</section>
+<style>
+    .payment-balance { grid-column:1/-1; padding:14px 16px; border:1px solid #d8e6dd; border-radius:12px; background:#f3faf5; color:#24583b; font-size:.9rem; }
+    .payment-balance strong { font-size:1.08rem; }
+</style>
+{{ order_balances|json_script:"order-balances" }}
+<script>
+    const paymentMethod = document.getElementById('id_payment_method');
+    const otherMethodField = document.querySelector('[data-form-field="other_payment_method"]');
+    if (paymentMethod && otherMethodField) {
+        const toggleOtherMethod = () => {
+            const isOther = paymentMethod.value === 'Other';
+            otherMethodField.style.display = isOther ? 'grid' : 'none';
+            document.getElementById('id_other_payment_method').required = isOther;
+        };
+        paymentMethod.addEventListener('change', toggleOtherMethod);
+        toggleOtherMethod();
+    }
+
+    const orderSelect = document.getElementById('id_order');
+    const amountInput = document.getElementById('id_amount');
+    const balanceNotice = document.getElementById('payment-balance');
+    if (orderSelect && amountInput && balanceNotice) {
+        const balances = JSON.parse(document.getElementById('order-balances').textContent);
+        const updateBalance = () => {
+            const balance = balances[orderSelect.value];
+            if (!balance) {
+                balanceNotice.hidden = true;
+                amountInput.removeAttribute('max');
+                return;
+            }
+            balanceNotice.innerHTML = `Remaining on this order: <strong>₹${Number(balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>`;
+            balanceNotice.hidden = false;
+            amountInput.max = balance;
+            if (!amountInput.value) amountInput.value = balance;
+        };
+        orderSelect.addEventListener('change', updateBalance);
+        updateBalance();
+    }
+</script>
+{% endblock %}

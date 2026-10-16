@@ -2,17 +2,62 @@
 
 {% block title %}Payments{% endblock %}
 {% block page_title %}Payments{% endblock %}
-{% block page_subtitle %}Review recorded payments and their linked orders.{% endblock %}
+{% block page_subtitle %}Track customer payments, see which orders are settled, and collect remaining balances.{% endblock %}
+{% block header_actions %}
+    <a class="btn btn-secondary" href="{% url 'order_create' %}">
+        <i class="fa-solid fa-bag-shopping"></i> New order
+    </a>
+    <a class="btn btn-primary" href="{% url 'payment_create' %}">
+        <i class="fa-solid fa-plus"></i> Record received payment
+    </a>
+{% endblock %}
 
 {% block content %}
 <section class="surface" style="padding:18px;margin-bottom:18px;">
-    <form method="get" class="form-grid" style="grid-template-columns:minmax(0,1fr) auto;align-items:end;">
+    <form method="get" class="form-grid">
         <div class="field-group">
             <label for="payment-search">Search payments</label>
-            <input id="payment-search" name="q" value="{{ query }}" placeholder="Payment, order number, customer, or method">
+            <input id="payment-search" type="search" name="q" value="{{ query }}" placeholder="Payment, order number, customer, or method">
         </div>
-        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        <div class="field-group">
+            <label for="payment-method-filter">Payment method</label>
+            <select id="payment-method-filter" name="method">
+                <option value="">All methods</option>
+                {% for payment_method in payment_methods %}
+                    <option value="{{ payment_method }}" {% if method == payment_method %}selected{% endif %}>{{ payment_method }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-group">
+            <label for="payment-date-from">From date</label>
+            <input id="payment-date-from" type="date" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="field-group">
+            <label for="payment-date-to">To date</label>
+            <input id="payment-date-to" type="date" name="date_to" value="{{ date_to }}">
+        </div>
+        <div class="header-actions--page" style="align-self:end;">
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Apply filters</button>
+            {% if query or method or date_from or date_to %}<a href="{% url 'payment_list' %}" class="btn btn-secondary">Clear</a>{% endif %}
+        </div>
     </form>
+</section>
+<section class="card-grid stats-grid" style="margin-bottom:18px;">
+    <div class="card">
+        <div class="metric-label">Payments in results</div>
+        <div class="metric-value">{{ payment_count }}</div>
+        <p class="payment-stat-note">Recorded payments matching your filters</p>
+    </div>
+    <div class="card">
+        <div class="metric-label">Received in results</div>
+        <div class="metric-value" style="font-size:clamp(1.3rem,2vw,2rem);">₹{{ recorded_total|floatformat:2 }}</div>
+        <p class="payment-stat-note">Payments already received from customers</p>
+    </div>
+    <div class="card">
+        <div class="metric-label">Still to collect</div>
+        <div class="metric-value" style="font-size:clamp(1.3rem,2vw,2rem);">₹{{ outstanding_total|floatformat:2 }}</div>
+        <p class="payment-stat-note">{{ open_order_count }} open order{{ open_order_count|pluralize }} · <a class="text-link" href="{% url 'order_list' %}">View orders</a></p>
+    </div>
 </section>
 <section class="card">
     <div class="table-wrap">
@@ -21,18 +66,23 @@
             <tbody>
                 {% for payment in payments %}
                     <tr>
-                        <td>#{{ payment.pk }}</td>
-                        <td>#{{ payment.order_id }}</td>
+                        <td><a class="text-link" href="{% url 'payment_detail' payment_id=payment.pk %}">Payment #{{ payment.pk }}</a></td>
+                        <td><a class="text-link" href="{% url 'order_list' %}?q={{ payment.order_id }}">Order #{{ payment.order_id }}</a></td>
                         <td>{{ payment.order.customer.name }}</td>
-                        <td>{{ payment.payment_method }}</td>
-                        <td>{{ payment.payment_date }}</td>
-                        <td>{{ payment.amount }}</td>
+                        <td><span class="status-badge badge-neutral">{{ payment.payment_method }}</span></td>
+                        <td>{{ payment.payment_date|date:"d M Y" }}</td>
+                        <td>₹{{ payment.amount|floatformat:2 }}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="6"><div class="empty-state">No payments match this search.</div></td></tr>
+                    <tr><td colspan="6"><div class="empty-state">
+                        <strong>No payments to show yet.</strong>
+                        <p style="margin:8px 0 16px;">Create an order, then record the cash, UPI, card, cheque, or bank payment you received.</p>
+                        <a class="btn btn-primary" href="{% url 'order_create' %}"><i class="fa-solid fa-plus"></i> Create customer order</a>
+                    </div></td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+<style>.payment-stat-note { margin:8px 0 0; color:var(--muted); font-size:.8rem; }</style>
 {% endblock %}

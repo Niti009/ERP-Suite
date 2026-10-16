@@ -1,81 +1,35 @@
-{% extends "inventory/base.html" %}
-{% block content %}
-  <div class="container mt-4">
-    <h2>Audit Logs</h2>
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>User</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for log in logs %}
-        <tr>
-          <td>{{ log.timestamp }}</td>
-          <td>{{ log.user }}</td>
-          <td>{{ log.action }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-{% endblock %}
-<h2>Audit Logs</h2>
-<table>
-  <tr>
-    <th>User</th>
-    <th>Action</th>
-    <th>Time</th>
-  </tr>
-  {% for log in logs %}
-  <tr>
-    <td>{{ log.user }}</td>
-    <td>{{ log.action }}</td>
-    <td>{{ log.timestamp }}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% extends "inventory/base.html" %}
-
-{% block content %}
-  <h2>Audit Logs</h2>
-  <table border="1">
-    <tr>
-      <th>User</th>
-      <th>Action</th>
-      <th>Timestamp</th>
-    </tr>
-    {% for log in logs %}
-    <tr>
-      <td>{{ log.user }}</td>
-      <td>{{ log.action }}</td>
-      <td>{{ log.timestamp }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-{% endblock %}
 {% extends "base.html" %}
 
+{% block title %}Audit Log{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+{% block page_subtitle %}Review recorded user actions and changes in ERP Suite.{% endblock %}
 {% block content %}
-<h2>Audit Logs</h2>
-<table>
-    <tr>
-        <th>User</th>
-        <th>Action</th>
-        <th>Model</th>
-        <th>Object ID</th>
-        <th>Timestamp</th>
-    </tr>
-    {% for log in logs %}
-    <tr>
-        <td>{{ log.user }}</td>
-        <td>{{ log.action }}</td>
-        <td>{{ log.model_name }}</td>
-        <td>{{ log.object_id }}</td>
-        <td>{{ log.timestamp }}</td>
-    </tr>
-    {% endfor %}
-</table>
+<section class="card" style="padding:0;overflow:hidden;">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Record</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp|date:"d M Y, H:i" }}</td>
+                        <td>{{ log.user.get_username|default:"System" }}</td>
+                        <td>{{ log.get_action_type_display }}</td>
+                        <td>{{ log.object_type }}{% if log.object_id %} #{{ log.object_id }}{% endif %}</td>
+                        <td>{{ log.description }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5"><div class="empty-state">No audit entries are available.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endblock %}

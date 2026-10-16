@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}New customer order{% endblock %}
+{% block page_title %}Create a customer order{% endblock %}
+{% block page_subtitle %}Choose the customer and products. Stock and the order total update when you save.{% endblock %}
+{% block header_actions %}
+    <a class="btn btn-secondary" href="{% url 'order_list' %}"><i class="fa-solid fa-arrow-left"></i> Back to orders</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .order-form-card { max-width:980px; }
+    .order-intro { margin:0 0 18px; color:var(--muted); font-size:.88rem; line-height:1.55; }
+    .order-lines { width:100%; min-width:620px; border-collapse:collapse; }
+    .order-lines th,.order-lines td { padding:12px 10px; border-bottom:1px solid var(--border); text-align:left; }
+    .order-lines th { color:var(--muted); font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; }
+    .order-lines select,.order-lines input { width:100%; min-width:90px; border:1px solid var(--border); border-radius:10px; padding:10px; background:#fff; color:var(--text); font:inherit; }
+    .order-lines select { min-width:260px; }
+    .order-total { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; padding:15px 17px; border-radius:13px; background:#f6f7ff; }
+    .order-total-label { color:var(--muted); font-size:.84rem; }
+    .order-total-value { color:var(--primary); font-family:"Space Grotesk",sans-serif; font-size:1.4rem; font-weight:700; }
+    .order-empty-stock { color:var(--muted); font-size:.85rem; }
+    .order-row-total { white-space:nowrap; font-weight:700; }
+    @media(max-width:620px) { .order-form-card { padding:14px; } }
+</style>
+<section class="card order-form-card">
+    <p class="order-intro">This records the sale in ERP Suite and deducts the sold quantities from stock. You can record a full or partial payment after creating the order.</p>
+    <form method="post" id="order-form">
+        {% csrf_token %}
+        {% if order_form.non_field_errors %}<div class="field-error">{{ order_form.non_field_errors }}</div>{% endif %}
+        <div class="field-group" style="max-width:520px;margin-bottom:22px;">
+            <label for="{{ order_form.customer.id_for_label }}">Customer</label>
+            {{ order_form.customer }}
+            {% for error in order_form.customer.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            {% if not order_form.customer.field.queryset.exists %}
+                <small>No customers yet. <a class="text-link" href="{% url 'add_customer' %}">Add a customer first.</a></small>
+            {% endif %}
+        </div>
+
+        {{ item_formset.management_form }}
+        {% if item_formset.non_form_errors %}<div class="field-error" style="margin-bottom:12px;">{{ item_formset.non_form_errors }}</div>{% endif %}
+        {% if item_formset.forms.0.product.field.queryset.exists %}
+            <div class="table-wrap">
+                <table class="order-lines">
+                    <thead><tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Line total</th><th></th></tr></thead>
+                    <tbody id="order-lines">
+                        {% for form in item_formset.forms %}
+                            <tr class="order-line">
+                                <td>
+                                    {{ form.id }}
+                                    {{ form.product }}
+                                    {% for error in form.product.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                                    {% for error in form.non_field_errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                                </td>
+                                <td>
+                                    {{ form.quantity }}
+                                    {% for error in form.quantity.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                                </td>
+                                <td class="unit-price">—</td>
+                                <td class="order-row-total">—</td>
+                                <td>{{ form.DELETE.as_hidden }}<button type="button" class="btn btn-secondary remove-order-line">Remove</button></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-secondary" id="add-order-line" style="margin-top:14px;"><i class="fa-solid fa-plus"></i> Add another product</button>
+            <div class="order-total"><span class="order-total-label">Order total</span><strong class="order-total-value" id="order-total">₹0.00</strong></div>
+            {% for hidden in item_formset.hidden_fields %}{{ hidden }}{% endfor %}
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-receipt"></i> Create order and record sale</button>
+                <a class="btn btn-secondary" href="{% url 'order_list' %}">Cancel</a>
+            </div>
+        {% else %}
+            <p class="order-empty-stock">There are no products in the catalog yet. <a class="text-link" href="{% url 'add_product' %}">Add a product first.</a></p>
+        {% endif %}
+    </form>
+</section>
+{{ product_info|json_script:"order-product-info" }}
+<template id="empty-order-line">
+    <tr class="order-line">
+        <td>{{ item_formset.empty_form.product }}</td>
+        <td>{{ item_formset.empty_form.quantity }}</td>
+        <td class="unit-price">—</td>
+        <td class="order-row-total">—</td>
+        <td>{{ item_formset.empty_form.DELETE.as_hidden }}<button type="button" class="btn btn-secondary remove-order-line">Remove</button></td>
+    </tr>
+</template>
+<script>
+    const productInfo = JSON.parse(document.getElementById('order-product-info').textContent);
+    const lines = document.getElementById('order-lines');
+    const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+    const totalOutput = document.getElementById('order-total');
+    const money = value => `₹${Number(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+    const updateOrderTotal = () => {
+        let total = 0;
+        lines.querySelectorAll('.order-line').forEach(row => {
+            const productId = row.querySelector('select[name$="-product"]').value;
+            const quantity = Number(row.querySelector('input[name$="-quantity"]').value || 0);
+            const product = productInfo[productId];
+            row.querySelector('.unit-price').textContent = product ? money(product.price) : '—';
+            row.querySelector('.order-row-total').textContent = product && quantity ? money(product.price * quantity) : '—';
+            if (product && quantity > 0) total += Number(product.price) * quantity;
+            const input = row.querySelector('input[name$="-quantity"]');
+            if (product) input.max = product.stock;
+            else input.removeAttribute('max');
+        });
+        totalOutput.textContent = money(total);
+    };
+
+    if (lines && totalForms && totalOutput) {
+        lines.addEventListener('input', updateOrderTotal);
+        lines.addEventListener('change', updateOrderTotal);
+        lines.addEventListener('click', event => {
+            const removeButton = event.target.closest('.remove-order-line');
+            if (!removeButton) return;
+            const row = removeButton.closest('.order-line');
+            const deleteInput = row.querySelector('input[name$="-DELETE"]');
+            if (deleteInput) deleteInput.checked = true;
+            row.hidden = true;
+            updateOrderTotal();
+        });
+        document.getElementById('add-order-line').addEventListener('click', () => {
+            const index = Number(totalForms.value);
+            const markup = document.getElementById('empty-order-line').innerHTML.replace(/__prefix__/g, index);
+            lines.insertAdjacentHTML('beforeend', markup);
+            totalForms.value = index + 1;
+            updateOrderTotal();
+        });
+        updateOrderTotal();
+    }
+</script>
+{% endblock %}

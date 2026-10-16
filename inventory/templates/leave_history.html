@@ -42,7 +42,7 @@
       justify-content: center;
     }
     .tab:hover {
-      background-color: #88bdf2;
+      background-color: #4f46e5;
       color: white;
       box-shadow: 0 4px 10px rgba(68, 114, 255, 0.5);
     }
@@ -52,7 +52,7 @@
       box-shadow: 0 5px 14px rgba(68, 114, 255, 0.7);
     }
     h2 {
-      color: #5677fc;
+      color: #0f172a;
       text-align: center;
       margin-bottom: 1.5rem;
     }
@@ -62,7 +62,7 @@
       border-spacing: 0 10px;
     }
     thead tr {
-      background-color: #5677fc;
+      background-color: #4338ca;
       color: white;
       text-align: left;
     }
@@ -113,9 +113,8 @@
 <body>
   <div class="container">
     <nav class="tabs">
-      <a href="{% url 'leave_application' %}" class="tab">Apply Leave</a>
-      <a href="{% url 'view_leaves' %}" class="tab">View Leaves</a>
-      <a href="{% url 'leave_history' %}" class="tab active">Leave History</a>
+      <a href="{% url 'apply_leave' %}" class="tab">Apply Leave</a>
+      <a href="{% url 'view_leaves' %}" class="tab active">Leave History</a>
     </nav>
 
     <h2>Leave History</h2>
@@ -134,7 +133,7 @@
         <tbody>
           {% for leave in leaves %}
             <tr>
-              <td>{{ leave.leave_type.name }}</td>
+              <td>{{ leave.leave_type }}</td>
               <td>{{ leave.start_date }}</td>
               <td>{{ leave.end_date }}</td>
               <td>{{ leave.reason|default:"-" }}</td>

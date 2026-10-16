@@ -12,6 +12,17 @@
 {% endblock %}
 
 {% block content %}
+<section class="card" style="padding:16px;margin-bottom:16px;">
+    <div class="eyebrow" style="margin-bottom:10px;">Quick navigation</div>
+    <nav class="dashboard-navigation" aria-label="Quick navigation">
+        <a href="{% url 'attendance_history' %}" class="btn btn-secondary"><i class="fa-solid fa-clock"></i> Attendance</a>
+        <a href="{% url 'view_leaves' %}" class="btn btn-secondary"><i class="fa-solid fa-calendar-days"></i> My leave</a>
+        <a href="{% url 'employee_profile' %}" class="btn btn-secondary"><i class="fa-solid fa-user"></i> My profile</a>
+        <a href="{% url 'upload_file' %}" class="btn btn-secondary"><i class="fa-solid fa-folder-open"></i> Documents</a>
+        <a href="{% url 'notifications_list' %}" class="btn btn-secondary"><i class="fa-solid fa-bell"></i> Notifications</a>
+    </nav>
+</section>
+
 <div class="card-grid stats-grid">
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
@@ -51,7 +62,7 @@
     </div>
 </div>
 
-<div class="card-grid" style="grid-template-columns: 1.2fr .8fr; margin-top: 24px;">
+<div class="card-grid dashboard-columns" style="margin-top: 18px;">
     <div class="card">
         <div class="eyebrow">Today</div>
         <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Attendance checklist</h3>
@@ -100,7 +111,7 @@
     </div>
 </div>
 
-<div class="card-grid" style="grid-template-columns: 1fr 1fr; margin-top: 24px;">
+<div class="card-grid dashboard-columns--equal" style="margin-top: 18px;">
     <div class="card">
         <div class="eyebrow">Leave</div>
         <h3 style="margin: 8px 0 16px; font-size:1.15rem;">Leave summary</h3>

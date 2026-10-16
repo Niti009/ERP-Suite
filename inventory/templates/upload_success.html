@@ -9,13 +9,7 @@
   </div>
 
   <div class="mt-4">
-    {% if file.file.name.endswith ".csv" %}
-      <a href="{{ file.file.url }}" class="btn btn-outline-success">Download CSV</a>
-    {% elif file.file.name.endswith ".pdf" %}
-      <embed src="{{ file.file.url }}" type="application/pdf" width="100%" height="600px" />
-    {% else %}
-      <a href="{{ file.file.url }}" class="btn btn-outline-info">Download File</a>
-    {% endif %}
+    <a href="{% url 'download_uploaded_file' document_id=file.pk %}" class="btn btn-outline-info">Download document</a>
   </div>
 </div>
 {% endblock %}

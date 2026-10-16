@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block header_actions %}
+  <a href="{% url 'attendance_history' %}" class="btn btn-secondary"><i class="fa-solid fa-clock-rotate-left"></i> Attendance history</a>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8">
   <!-- Header -->
@@ -84,10 +88,12 @@
                 </td>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-2 justify-center">
-                    <a href="{% url 'approve_attendance' attendance.id %}" class="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-lg transition text-sm">
-                      <i class="fa-solid fa-check mr-1"></i>
-                      Approve
-                    </a>
+                    <form method="post" action="{% url 'approve_attendance' attendance.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-lg transition text-sm">
+                        <i class="fa-solid fa-check mr-1"></i> Approve
+                      </button>
+                    </form>
                     <a href="{% url 'reject_attendance' attendance.id %}" class="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 rounded-lg transition text-sm">
                       <i class="fa-solid fa-times mr-1"></i>
                       Reject

@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="max-w-xl mx-auto mt-12 p-10 bg-white rounded-3xl shadow-xl border border-gray-200 text-center">
-  <h2 class="text-3xl font-bold text-[#88BDF2] mb-6">🕒 Mark Attendance</h2>
+  <h2 class="text-3xl font-bold text-slate-800 mb-6">🕒 Mark Attendance</h2>
 
   {% if message %}
     <p class="text-md text-green-600 font-semibold mb-4">{{ message }}</p>
@@ -18,10 +18,10 @@
 
   <form method="POST" class="flex flex-col sm:flex-row justify-center gap-4">
     {% csrf_token %}
-    <button type="submit" name="action" value="checkin" class="bg-[#88BDF2] text-white font-bold px-6 py-3 rounded-full hover:bg-blue-500 transition">
+    <button type="submit" name="action" value="checkin" class="bg-blue-600 text-white font-bold px-6 py-3 rounded-full hover:bg-blue-700 transition">
       ⏰ Punch In
     </button>
-    <button type="submit" name="action" value="checkout" class="bg-[#C1BFFF] text-white font-bold px-6 py-3 rounded-full hover:bg-purple-500 transition">
+    <button type="submit" name="action" value="checkout" class="bg-purple-600 text-white font-bold px-6 py-3 rounded-full hover:bg-purple-700 transition">
       🔚 Punch Out
     </button>
   </form>

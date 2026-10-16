@@ -446,6 +446,312 @@ class ExistingModuleIntegrationTests(TestCase):
         self.assertContains(search_response, "employee-guide.pdf")
         self.assertNotContains(search_response, "admin-only.pdf")
 
+    def test_payment_can_be_recorded_and_overpayment_is_rejected(self):
+        self.client.force_login(self.admin)
+        order = Order.objects.create(customer=self.customer, total_amount="500.00")
+
+        response = self.client.post(
+            reverse("payment_create"),
+            {"order": order.pk, "amount": "125.50", "payment_method": "Bank transfer"},
+        )
+
+        payment = Payment.objects.get(order=order)
+        self.assertRedirects(
+            response,
+            reverse("payment_detail", kwargs={"payment_id": payment.pk}),
+        )
+        self.assertContains(self.client.get(reverse("payment_detail", kwargs={"payment_id": payment.pk})), "125.50")
+
+        response = self.client.post(
+            reverse("payment_create"),
+            {"order": order.pk, "amount": "400.00", "payment_method": "Cash"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "remaining balance")
+        self.assertEqual(Payment.objects.filter(order=order).count(), 1)
+
+    def test_payment_form_offers_methods_and_shows_remaining_order_balance(self):
+        order = Order.objects.create(customer=self.customer, total_amount="10000.00")
+        Payment.objects.create(
+            order=order,
+            amount="2500.00",
+            payment_method="UPI",
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("payment_create"))
+
+        self.assertContains(response, "UPI")
+        self.assertContains(response, "Credit / debit card")
+        self.assertContains(response, "Bank transfer")
+        self.assertContains(response, "Cheque")
+        self.assertContains(response, "Northwind Office")
+        self.assertContains(response, "₹7,500.00")
+
+        response = self.client.post(
+            reverse("payment_create"),
+            {
+                "order": order.pk,
+                "amount": "500.00",
+                "payment_method": "Other",
+                "other_payment_method": "Wallet",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Payment.objects.filter(order=order, payment_method="Wallet").exists()
+        )
+
+    def test_order_can_be_created_from_customer_products_and_decrements_stock(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("order_create"),
+            {
+                "customer": self.customer.pk,
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-product": self.product.pk,
+                "items-0-quantity": "3",
+            },
+        )
+
+        order = Order.objects.get(customer=self.customer, total_amount="1497.00")
+        self.assertRedirects(
+            response,
+            f"{reverse('payment_create')}?order={order.pk}",
+        )
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 5)
+        line = OrderItem.objects.get(order=order)
+        self.assertEqual(line.price, self.product.price)
+        self.assertEqual(line.quantity, 3)
+
+    def test_order_cannot_be_created_without_products_or_with_insufficient_stock(self):
+        self.client.force_login(self.admin)
+        empty_response = self.client.post(
+            reverse("order_create"),
+            {
+                "customer": self.customer.pk,
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-product": "",
+                "items-0-quantity": "",
+            },
+        )
+        self.assertContains(empty_response, "Add at least one product")
+
+        stock_response = self.client.post(
+            reverse("order_create"),
+            {
+                "customer": self.customer.pk,
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-product": self.product.pk,
+                "items-0-quantity": "9",
+            },
+        )
+        self.assertContains(stock_response, "Only 8 units are currently in stock")
+        self.assertFalse(Order.objects.filter(customer=self.customer, total_amount="4491.00").exists())
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 8)
+
+    def test_order_and_payment_pages_show_customer_paid_and_remaining_amounts(self):
+        self.client.force_login(self.admin)
+        order = Order.objects.create(customer=self.customer, total_amount="500.00")
+
+        payment_page = self.client.get(reverse("payment_create"), {"order": order.pk})
+        self.assertContains(payment_page, "Remaining on this order")
+        self.assertEqual(
+            int(payment_page.context["form"]["order"].value()),
+            order.pk,
+        )
+
+        first_payment = self.client.post(
+            reverse("payment_create"),
+            {"order": order.pk, "amount": "200.00", "payment_method": "UPI"},
+        )
+        self.assertEqual(first_payment.status_code, 302)
+        order_page = self.client.get(reverse("order_list"))
+        self.assertContains(order_page, "Northwind Office")
+        self.assertContains(order_page, "Part paid")
+        self.assertContains(order_page, "₹300.00")
+
+        payment = Payment.objects.get(order=order)
+        detail_page = self.client.get(
+            reverse("payment_detail", kwargs={"payment_id": payment.pk})
+        )
+        self.assertContains(detail_page, "Payment history for this order")
+        self.assertContains(detail_page, "₹300.00")
+
+        self.client.post(
+            reverse("payment_create"),
+            {"order": order.pk, "amount": "300.00", "payment_method": "Cash"},
+        )
+        final_order_page = self.client.get(reverse("order_list"))
+        self.assertContains(final_order_page, "Paid")
+        self.assertContains(final_order_page, "Still to collect")
+        self.assertContains(final_order_page, "₹0.00")
+
+    def test_employee_cannot_create_or_download_another_users_documents(self):
+        document = UploadedFile.objects.create(
+            file="uploads/private-document.pdf",
+            uploaded_by=self.admin,
+        )
+        self.client.force_login(self.employee)
+
+        self.assertRedirects(
+            self.client.get(reverse("payment_create")),
+            reverse("dashboard"),
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("download_uploaded_file", kwargs={"document_id": document.pk})
+            ).status_code,
+            404,
+        )
+
+    def test_uploaded_document_is_immediately_listed_and_download_is_private(self):
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            self.client.force_login(self.employee)
+            response = self.client.post(
+                reverse("upload_file"),
+                {
+                    "file": SimpleUploadedFile(
+                        "employee-note.txt",
+                        b"Updated employee details.",
+                        content_type="text/plain",
+                    )
+                },
+            )
+            self.assertRedirects(response, reverse("upload_file"))
+            document = UploadedFile.objects.get(uploaded_by=self.employee)
+
+            list_response = self.client.get(reverse("upload_file"))
+            self.assertContains(list_response, "employee-note.txt")
+            self.assertContains(
+                list_response,
+                reverse("download_uploaded_file", kwargs={"document_id": document.pk}),
+            )
+            download_response = self.client.get(
+                reverse("download_uploaded_file", kwargs={"document_id": document.pk})
+            )
+            self.assertEqual(download_response.status_code, 200)
+            self.assertEqual(b"".join(download_response.streaming_content), b"Updated employee details.")
+            download_response.close()
+            self.assertEqual(
+                self.client.get(
+                    f"{settings.MEDIA_URL}{document.file.name}"
+                ).status_code,
+                404,
+            )
+
+            self.client.force_login(self.admin)
+            admin_download_response = self.client.get(
+                reverse("download_uploaded_file", kwargs={"document_id": document.pk})
+            )
+            self.assertEqual(admin_download_response.status_code, 200)
+            admin_download_response.close()
+
+    def test_attendance_history_filters_records_and_scopes_employee_view(self):
+        today = timezone.now().date()
+        own_record = Attendance.objects.create(
+            employee=self.employee,
+            date=today,
+            status="Present",
+            approval_status="Approved",
+        )
+        Attendance.objects.create(
+            employee=self.admin,
+            date=today - timedelta(days=1),
+            status="Present",
+        )
+
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse("attendance_history"))
+        self.assertContains(response, own_record.date.strftime("%Y-%m-%d"))
+        self.assertEqual(list(response.context["records"].object_list), [own_record])
+
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            reverse("attendance_history"),
+            {"approval_status": "Approved", "employee": self.employee.pk},
+        )
+        self.assertEqual(list(response.context["records"].object_list), [own_record])
+
+    def test_attendance_approval_is_post_only_and_pending_only(self):
+        attendance = Attendance.objects.create(
+            employee=self.employee,
+            date=timezone.now().date(),
+            status="Present",
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(
+            self.client.get(
+                reverse("approve_attendance", kwargs={"attendance_id": attendance.pk})
+            ).status_code,
+            405,
+        )
+        response = self.client.post(
+            reverse("approve_attendance", kwargs={"attendance_id": attendance.pk})
+        )
+        self.assertRedirects(response, reverse("attendance_approvals"))
+        attendance.refresh_from_db()
+        self.assertEqual(attendance.approval_status, "Approved")
+        self.assertEqual(
+            self.client.post(
+                reverse("approve_attendance", kwargs={"attendance_id": attendance.pk})
+            ).status_code,
+            302,
+        )
+
+    def test_leave_approval_is_post_only_and_notifies_employee(self):
+        leave = LeaveApplication.objects.create(
+            employee=self.employee,
+            leave_type="Casual",
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date(),
+            reason="Personal appointment",
+        )
+        self.client.force_login(self.admin)
+        approval_url = reverse("approve_leave", kwargs={"leave_id": leave.pk})
+
+        self.assertEqual(self.client.get(approval_url).status_code, 405)
+        response = self.client.post(approval_url)
+
+        self.assertRedirects(response, reverse("view_leaves"))
+        leave.refresh_from_db()
+        self.assertEqual(leave.status, "Approved")
+        self.assertTrue(
+            self.employee.notifications.filter(
+                notification_type="leave_approved",
+                related_object_id=leave.pk,
+            ).exists()
+        )
+
+    def test_missing_uploaded_document_redirects_with_a_clear_message(self):
+        document = UploadedFile.objects.create(
+            file="uploads/missing-document.pdf",
+            uploaded_by=self.employee,
+        )
+        self.client.force_login(self.employee)
+
+        response = self.client.get(
+            reverse("download_uploaded_file", kwargs={"document_id": document.pk}),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("upload_file"))
+        self.assertContains(response, "This document is no longer available.")
+
     def test_notification_read_actions_require_post_and_are_user_scoped(self):
         notification = Notification.objects.create(
             user=self.employee,
@@ -563,6 +869,7 @@ class EmployeeNotificationWorkflowTests(TestCase):
                 title="Employee document uploaded",
             ).exists()
         )
+
 
 class InventoryReconciliationTests(TestCase):
     def setUp(self):

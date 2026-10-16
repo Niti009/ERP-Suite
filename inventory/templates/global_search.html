@@ -203,9 +203,9 @@
 
                 <div class="divide-y divide-gray-100">
                     {% for document in results.documents %}
-                    <a href="{{ document.file.url }}" class="px-6 py-4 block hover:bg-slate-50" target="_blank" rel="noopener">
+                    <a href="{% url 'download_uploaded_file' document_id=document.pk %}" class="px-6 py-4 block hover:bg-slate-50">
                         <p class="font-semibold text-slate-800">
-                            {{ document.file.name }}
+                            {{ document.file.name|cut:"uploads/" }}
                         </p>
                         <p class="text-sm text-gray-500">
                             Uploaded {{ document.uploaded_at }}

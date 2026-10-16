@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.forms import SetPasswordForm
@@ -5,25 +7,28 @@ from django.conf import settings
 from django.urls import reverse
 from django.core.mail import send_mail
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import IntegrityError, transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import DecimalField, Exists, F, OuterRef, Sum, Value
+from django.db.models.functions import Coalesce
 from django.views.decorators.http import require_POST
 import hashlib
 import hmac
 import json
 import logging
 import secrets
+from decimal import Decimal
 from types import SimpleNamespace
 from datetime import datetime, timedelta
 from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from .models import (
     Department,
@@ -33,6 +38,7 @@ from .models import (
     Product,
     Customer,
     Order,
+    OrderItem,
     Payment,
     UploadedFile,
     Notification,
@@ -50,6 +56,9 @@ from .forms import (
     EmployeePromptForm,
     CustomPasswordChangeForm,
     EmployeeCreateForm,
+    PaymentForm,
+    OrderCreateForm,
+    OrderItemFormSet,
 )
 from .permissions import demo_read_only, is_demo_user
 from .reconciliation import MAX_MANIFEST_SIZE, reconcile_manifest
@@ -383,14 +392,18 @@ def dashboard(request):
             return redirect("dashboard")
 
         if attendance is None:
-
-            attendance = Attendance.objects.create(
+            attendance, created = Attendance.objects.get_or_create(
                 employee=request.user,
                 date=today,
-                status="Present",
-                approval_status="Pending",
-                check_in=timezone.now().time()
+                defaults={
+                    "status": "Present",
+                    "approval_status": "Pending",
+                    "check_in": timezone.now().time(),
+                },
             )
+            if not created:
+                messages.info(request, "Today's attendance has already been recorded.")
+                return redirect("dashboard")
             _notify_admins(
                 "Employee attendance submitted",
                 f"{request.user.get_full_name() or request.user.username} checked in for {today}.",
@@ -398,6 +411,7 @@ def dashboard(request):
                 attendance.pk,
                 reverse("attendance_approvals"),
             )
+            messages.success(request, "Your check-in was recorded and sent for approval.")
 
         elif attendance.check_out is None:
 
@@ -410,6 +424,9 @@ def dashboard(request):
                 attendance.pk,
                 reverse("attendance_approvals"),
             )
+            messages.success(request, "Your check-out was recorded.")
+        else:
+            messages.info(request, "Today's attendance is already complete.")
 
         return redirect("dashboard")
 
@@ -554,17 +571,19 @@ def view_leaves(request):
             employee=request.user
         ).order_by("-start_date")
 
-    return render(
-        request,
-        "view_leaves.html",
-        {
-            "leaves": leaves,
-        },
-    )
+    context = {"leaves": leaves}
+    if request.user.is_superuser:
+        context["erp_breadcrumbs"] = [
+            {"label": "Home", "url": reverse("dashboard")},
+            {"label": "People", "url": None},
+            {"label": "Leave Requests", "url": None},
+        ]
+    return render(request, "view_leaves.html", context)
 
 
 @login_required
 @demo_read_only
+@require_POST
 def approve_leave(request, leave_id):
 
     if not request.user.is_superuser:
@@ -581,8 +600,28 @@ def approve_leave(request, leave_id):
         id=leave_id
     )
 
+    if leave.status != "Pending":
+        messages.info(request, "This leave request has already been reviewed.")
+        return redirect("view_leaves")
+
     leave.status = "Approved"
     leave.save()
+    Notification.objects.create(
+        user=leave.employee,
+        notification_type="leave_approved",
+        title="Leave request approved",
+        description=f"Your {leave.leave_type.lower()} leave from {leave.start_date} to {leave.end_date} was approved.",
+        related_object_type="leave",
+        related_object_id=leave.pk,
+        related_link=reverse("view_leaves"),
+    )
+    ActivityLog.objects.create(
+        user=request.user,
+        action_type="leave_approved",
+        object_type="leave",
+        object_id=leave.pk,
+        description=f"Approved leave request for {leave.employee.username}.",
+    )
 
     messages.success(
         request,
@@ -594,6 +633,7 @@ def approve_leave(request, leave_id):
 
 @login_required
 @demo_read_only
+@require_POST
 def reject_leave(request, leave_id):
 
     if not request.user.is_superuser:
@@ -610,8 +650,28 @@ def reject_leave(request, leave_id):
         id=leave_id
     )
 
+    if leave.status != "Pending":
+        messages.info(request, "This leave request has already been reviewed.")
+        return redirect("view_leaves")
+
     leave.status = "Rejected"
     leave.save()
+    Notification.objects.create(
+        user=leave.employee,
+        notification_type="leave_rejected",
+        title="Leave request rejected",
+        description=f"Your {leave.leave_type.lower()} leave from {leave.start_date} to {leave.end_date} was rejected.",
+        related_object_type="leave",
+        related_object_id=leave.pk,
+        related_link=reverse("view_leaves"),
+    )
+    ActivityLog.objects.create(
+        user=request.user,
+        action_type="leave_rejected",
+        object_type="leave",
+        object_id=leave.pk,
+        description=f"Rejected leave request for {leave.employee.username}.",
+    )
 
     messages.success(
         request,
@@ -623,23 +683,63 @@ def reject_leave(request, leave_id):
 
 @login_required
 def attendance_history(request):
-
     if request.user.is_superuser:
-
         records = Attendance.objects.select_related(
             "employee"
         ).all().order_by("-date")
-
     else:
-
         records = Attendance.objects.filter(
             employee=request.user
         ).order_by("-date")
 
-    present_days = records.filter(
-        status="Present"
-    ).count()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    status = request.GET.get("status", "").strip()
+    approval_status = request.GET.get("approval_status", "").strip()
+    selected_employee = request.GET.get("employee", "").strip()
 
+    parsed_date_from = parse_date(date_from) if date_from else None
+    parsed_date_to = parse_date(date_to) if date_to else None
+    if date_from and parsed_date_from is None:
+        messages.error(request, "Enter a valid start date.")
+    if date_to and parsed_date_to is None:
+        messages.error(request, "Enter a valid end date.")
+    if parsed_date_from and parsed_date_to and parsed_date_from > parsed_date_to:
+        messages.error(request, "The start date must be on or before the end date.")
+        parsed_date_from = parsed_date_to = None
+
+    if parsed_date_from:
+        records = records.filter(date__gte=parsed_date_from)
+    if parsed_date_to:
+        records = records.filter(date__lte=parsed_date_to)
+    if status in {"Present", "Absent"}:
+        records = records.filter(status=status)
+    else:
+        status = ""
+    if approval_status in {"Pending", "Approved", "Rejected"}:
+        records = records.filter(approval_status=approval_status)
+    else:
+        approval_status = ""
+
+    employees = []
+    if request.user.is_superuser:
+        employees = list(
+            Attendance.objects.values_list(
+                "employee_id", "employee__username"
+            ).distinct().order_by("employee__username")
+        )
+        if selected_employee:
+            if selected_employee.isdigit() and any(
+                str(employee_id) == selected_employee for employee_id, _ in employees
+            ):
+                records = records.filter(employee_id=int(selected_employee))
+            else:
+                messages.error(request, "Select an employee with attendance records.")
+                selected_employee = ""
+    else:
+        selected_employee = ""
+
+    present_days = records.filter(status="Present").count()
     total_days = records.count()
 
     attendance_percentage = (
@@ -647,14 +747,24 @@ def attendance_history(request):
         if total_days > 0 else 0
     )
 
-    return render(
-        request,
-        "attendance_history.html",
-        {
-            "records": records,
-            "attendance_percentage": attendance_percentage,
-        },
-    )
+    page_obj = Paginator(records, 25).get_page(request.GET.get("page"))
+    context = {
+        "records": page_obj,
+        "attendance_percentage": attendance_percentage,
+        "employees": employees,
+        "selected_employee": selected_employee,
+        "selected_status": status,
+        "selected_approval_status": approval_status,
+        "selected_date_from": date_from,
+        "selected_date_to": date_to,
+    }
+    if request.user.is_superuser:
+        context["erp_breadcrumbs"] = [
+            {"label": "Home", "url": reverse("dashboard")},
+            {"label": "People", "url": None},
+            {"label": "Attendance History", "url": None},
+        ]
+    return render(request, "attendance_history.html", context)
 
 
 @login_required
@@ -1123,14 +1233,131 @@ def order_list(request):
         return redirect('dashboard')
 
     query = request.GET.get('q', '').strip()
-    orders = Order.objects.select_related('customer').prefetch_related('orderitem_set').order_by('-date', '-pk')
+    orders = Order.objects.select_related('customer').prefetch_related(
+        'orderitem_set__product'
+    ).annotate(
+        paid_amount=Sum('payment__amount')
+    ).order_by('-date', '-pk')
     if query:
         filters = Q(customer__name__icontains=query)
         if query.isdigit():
             filters |= Q(pk=int(query))
         filters |= Q(orderitem__product__name__icontains=query)
         orders = orders.filter(filters).distinct()
-    return render(request, 'order_list.html', {'orders': orders[:200], 'query': query})
+    orders = list(orders[:200])
+    for order in orders:
+        order.paid_amount = order.paid_amount or Decimal("0")
+        order.remaining_amount = max(order.total_amount - order.paid_amount, Decimal("0"))
+        order.payment_status = (
+            "Paid" if not order.remaining_amount
+            else "Part paid" if order.paid_amount
+            else "Unpaid"
+        )
+    return render(request, 'order_list.html', {'orders': orders, 'query': query})
+
+
+@login_required
+@demo_read_only
+def order_create(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can create customer orders.')
+        return redirect('dashboard')
+
+    order_form = OrderCreateForm(request.POST or None)
+    item_formset = OrderItemFormSet(
+        request.POST or None,
+        instance=Order(),
+        prefix="items",
+    )
+    products_valid = False
+    if request.method == "POST":
+        order_valid = order_form.is_valid()
+        products_valid = item_formset.is_valid()
+    else:
+        order_valid = False
+    if request.method == "POST" and order_valid and products_valid:
+        requested_quantities = {}
+        for form in item_formset.forms:
+            cleaned_data = getattr(form, "cleaned_data", {})
+            if cleaned_data and not cleaned_data.get("DELETE"):
+                product = cleaned_data.get("product")
+                quantity = cleaned_data.get("quantity")
+                if product and quantity:
+                    requested_quantities[product.pk] = quantity
+
+        with transaction.atomic():
+            products = {
+                product.pk: product
+                for product in Product.objects.select_for_update().filter(
+                    pk__in=requested_quantities
+                )
+            }
+            stock_errors = []
+            for form in item_formset.forms:
+                cleaned_data = getattr(form, "cleaned_data", {})
+                if not cleaned_data or cleaned_data.get("DELETE"):
+                    continue
+                product = cleaned_data.get("product")
+                quantity = cleaned_data.get("quantity")
+                if product and quantity:
+                    locked_product = products.get(product.pk)
+                    if not locked_product:
+                        form.add_error("product", "This product is no longer available.")
+                    elif quantity > locked_product.quantity:
+                        form.add_error(
+                            "quantity",
+                            f"Only {locked_product.quantity} units of "
+                            f"{locked_product.name} are currently in stock.",
+                        )
+                    if form.errors:
+                        stock_errors.append(form)
+
+            if not stock_errors:
+                total_amount = sum(
+                    (
+                        products[product_id].price * quantity
+                        for product_id, quantity in requested_quantities.items()
+                    ),
+                    Decimal("0"),
+                )
+                order = Order.objects.create(
+                    customer=order_form.cleaned_data["customer"],
+                    total_amount=total_amount,
+                )
+                for form in item_formset.forms:
+                    cleaned_data = getattr(form, "cleaned_data", {})
+                    if not cleaned_data or cleaned_data.get("DELETE"):
+                        continue
+                    product = products[cleaned_data["product"].pk]
+                    quantity = cleaned_data["quantity"]
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        quantity=quantity,
+                        price=product.price,
+                    )
+                    product.quantity -= quantity
+                    product.save(update_fields=["quantity"])
+
+        if not stock_errors:
+            messages.success(
+                request,
+                f"Order #{order.pk} created. You can now record the customer's payment.",
+            )
+            return redirect(f"{reverse('payment_create')}?order={order.pk}")
+
+    return render(request, "order_form.html", {
+        "order_form": order_form,
+        "item_formset": item_formset,
+        "product_info": {
+            str(product.pk): {
+                "name": product.name,
+                "price": str(product.price),
+                "stock": product.quantity,
+            }
+            for product in Product.objects.order_by("name")
+        },
+    })
 
 
 @login_required
@@ -1140,13 +1367,139 @@ def payment_list(request):
         return redirect('dashboard')
 
     query = request.GET.get('q', '').strip()
+    method = request.GET.get('method', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
     payments = Payment.objects.select_related('order__customer').order_by('-payment_date', '-pk')
     if query:
         filters = Q(order__customer__name__icontains=query) | Q(payment_method__icontains=query)
         if query.isdigit():
             filters |= Q(order_id=int(query)) | Q(pk=int(query))
         payments = payments.filter(filters)
-    return render(request, 'payment_list.html', {'payments': payments[:200], 'query': query})
+    if method:
+        payments = payments.filter(payment_method=method)
+    parsed_date_from = parse_date(date_from) if date_from else None
+    parsed_date_to = parse_date(date_to) if date_to else None
+    if date_from and parsed_date_from is None:
+        messages.error(request, 'Enter a valid payment start date.')
+    if date_to and parsed_date_to is None:
+        messages.error(request, 'Enter a valid payment end date.')
+    if parsed_date_from and parsed_date_to and parsed_date_from > parsed_date_to:
+        messages.error(request, 'The payment start date must be on or before the end date.')
+        parsed_date_from = parsed_date_to = None
+    if parsed_date_from:
+        payments = payments.filter(payment_date__gte=parsed_date_from)
+    if parsed_date_to:
+        payments = payments.filter(payment_date__lte=parsed_date_to)
+
+    recorded_total = payments.aggregate(total=Sum('amount'))['total'] or Decimal("0")
+    payment_count = payments.count()
+    open_orders = Order.objects.annotate(
+        total_paid=Coalesce(
+            Sum("payment__amount"),
+            Value(Decimal("0")),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).filter(total_paid__lt=F("total_amount"))
+    outstanding_total = open_orders.aggregate(
+        total=Sum(
+            F("total_amount") - F("total_paid"),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )["total"] or Decimal("0")
+    payment_methods = Payment.objects.order_by('payment_method').values_list(
+        'payment_method', flat=True
+    ).distinct()
+    return render(request, 'payment_list.html', {
+        'payments': payments[:200],
+        'payment_count': payment_count,
+        'query': query,
+        'method': method,
+        'payment_methods': payment_methods,
+        'date_from': date_from,
+        'date_to': date_to,
+        'recorded_total': recorded_total,
+        'open_order_count': open_orders.count(),
+        'outstanding_total': outstanding_total,
+    })
+
+
+@login_required
+def payment_create(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can record payments.')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = PaymentForm(request.POST)
+        if form.is_valid():
+            order = form.cleaned_data['order']
+            amount = form.cleaned_data['amount']
+            try:
+                with transaction.atomic():
+                    locked_order = Order.objects.select_for_update().get(pk=order.pk)
+                    paid_amount = (
+                        Payment.objects.filter(order=locked_order)
+                        .aggregate(total=Sum('amount'))['total'] or 0
+                    )
+                    remaining = locked_order.total_amount - paid_amount
+                    if amount > remaining:
+                        form.add_error(
+                            'amount',
+                            "The payment cannot exceed the order's remaining balance.",
+                        )
+                    else:
+                        payment = form.save(commit=False)
+                        payment.order = locked_order
+                        payment.save()
+            except Order.DoesNotExist:
+                form.add_error('order', 'The selected order no longer exists.')
+            else:
+                if not form.errors:
+                    messages.success(
+                        request,
+                        'Payment recorded in ERP Suite. No external payment was processed.',
+                    )
+                    return redirect('payment_detail', payment_id=payment.pk)
+    else:
+        form = PaymentForm(initial={"order": request.GET.get("order")})
+
+    order_balances = {}
+    for order in form.fields["order"].queryset:
+        order_balances[str(order.pk)] = str(
+            order.total_amount - (order.recorded_payments or Decimal("0"))
+        )
+    return render(request, 'payment_form.html', {
+        'form': form,
+        'order_balances': order_balances,
+    })
+
+
+@login_required
+def payment_detail(request, payment_id):
+    if not request.user.is_superuser:
+        messages.error(request, 'Only administrators can view organization payments.')
+        return redirect('dashboard')
+
+    payment = get_object_or_404(
+        Payment.objects.select_related('order__customer'),
+        pk=payment_id,
+    )
+    order_payments_total = (
+        Payment.objects.filter(order=payment.order).aggregate(total=Sum('amount'))['total'] or 0
+    )
+    remaining_balance = max(
+        payment.order.total_amount - order_payments_total,
+        Decimal("0"),
+    )
+    return render(request, 'payment_detail.html', {
+        'payment': payment,
+        'order_payments_total': order_payments_total,
+        'order_remaining_balance': remaining_balance,
+        'order_payment_history': Payment.objects.filter(
+            order=payment.order
+        ).order_by('-payment_date', '-pk'),
+    })
 
 
 @login_required
@@ -1202,20 +1555,14 @@ def add_customer(request):
 @login_required
 @demo_read_only
 def upload_file(request):
-
     if request.method == "POST":
-
         form = FileUploadForm(
             request.POST,
             request.FILES
         )
-
         if form.is_valid():
-
             uploaded = form.save(commit=False)
-
             uploaded.uploaded_by = request.user
-
             uploaded.save()
 
             _notify_admins(
@@ -1225,6 +1572,13 @@ def upload_file(request):
                 uploaded.pk,
                 reverse("upload_file"),
             )
+            ActivityLog.objects.create(
+                user=request.user,
+                action_type="document_uploaded",
+                object_type="document",
+                object_id=uploaded.pk,
+                description=f"Uploaded document {Path(uploaded.file.name).name}.",
+            )
 
             messages.success(
                 request,
@@ -1232,27 +1586,69 @@ def upload_file(request):
             )
 
             return redirect("upload_file")
-
     else:
-
         form = FileUploadForm()
 
     if request.user.is_superuser:
-        uploaded_files = UploadedFile.objects.all().order_by("-uploaded_at")
+        uploaded_files = UploadedFile.objects.select_related(
+            "uploaded_by"
+        ).all().order_by("-uploaded_at")
     else:
         uploaded_files = UploadedFile.objects.filter(
-            Q(uploaded_by=request.user) | Q(uploaded_by__isnull=True)
+            uploaded_by=request.user
         ).order_by("-uploaded_at")
+
+    query = request.GET.get("q", "").strip()
+    if query:
+        if request.user.is_superuser:
+            uploaded_files = uploaded_files.filter(
+                Q(uploaded_by__username__icontains=query)
+                | Q(uploaded_by__first_name__icontains=query)
+                | Q(uploaded_by__last_name__icontains=query)
+                | Q(file__icontains=query)
+            )
+        else:
+            uploaded_files = uploaded_files.filter(file__icontains=query)
+
+    page_obj = Paginator(uploaded_files, 25).get_page(request.GET.get("page"))
+    for document in page_obj:
+        document.document_type = Path(document.file.name).suffix.lstrip(".").upper() or "FILE"
+        document.display_name = Path(document.file.name).name
 
     return render(
         request,
         "upload_file.html",
         {
             "form": form,
-            "uploaded_files": uploaded_files,
+            "uploaded_files": page_obj,
+            "query": query,
         },
     )
 
+
+@login_required
+def download_uploaded_file(request, document_id):
+    documents = UploadedFile.objects.select_related("uploaded_by")
+    if not request.user.is_superuser:
+        documents = documents.filter(uploaded_by=request.user)
+    document = get_object_or_404(documents, pk=document_id)
+
+    try:
+        file_handle = document.file.open("rb")
+    except FileNotFoundError:
+        messages.error(request, "This document is no longer available.")
+        return redirect("upload_file")
+
+    return FileResponse(
+        file_handle,
+        as_attachment=True,
+        filename=Path(document.file.name).name,
+        content_type="application/octet-stream",
+    )
+
+
+def block_private_upload_media(request, path):
+    raise Http404
 
 # ==================== FEATURE 1: ATTENDANCE APPROVAL ====================
 
@@ -1284,6 +1680,7 @@ def attendance_approvals(request):
 
 
 @login_required
+@require_POST
 @demo_read_only
 def approve_attendance(request, attendance_id):
     """Approve pending attendance"""
@@ -1292,6 +1689,9 @@ def approve_attendance(request, attendance_id):
         return redirect('dashboard')
     
     attendance = get_object_or_404(Attendance, id=attendance_id)
+    if attendance.approval_status != 'Pending':
+        messages.info(request, "This attendance record has already been reviewed.")
+        return redirect('attendance_approvals')
     
     attendance.approval_status = 'Approved'
     attendance.approved_at = timezone.now()
@@ -1331,9 +1731,18 @@ def reject_attendance(request, attendance_id):
         return redirect('dashboard')
     
     attendance = get_object_or_404(Attendance, id=attendance_id)
-    
+
     if request.method == 'POST':
-        reason = request.POST.get('rejection_reason', '')
+        if attendance.approval_status != 'Pending':
+            messages.info(request, "This attendance record has already been reviewed.")
+            return redirect('attendance_approvals')
+        reason = request.POST.get('rejection_reason', '').strip()
+        if not reason:
+            messages.error(request, "Enter a reason before rejecting attendance.")
+            return render(request, 'reject_attendance.html', {'attendance': attendance}, status=400)
+        if len(reason) > 2000:
+            messages.error(request, "The rejection reason must be 2,000 characters or fewer.")
+            return render(request, 'reject_attendance.html', {'attendance': attendance}, status=400)
         
         attendance.approval_status = 'Rejected'
         attendance.rejection_reason = reason
@@ -1510,11 +1919,11 @@ def activity_log(request):
     # Filter by date if provided
     date_from = request.GET.get('date_from', '')
     if date_from:
-        try:
-            date_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+        date_obj = parse_date(date_from)
+        if date_obj:
             logs = logs.filter(timestamp__date__gte=date_obj)
-        except:
-            pass
+        else:
+            messages.error(request, "Enter a valid date to filter the activity log.")
     
     logs = logs.order_by('-timestamp')[:200]
     
@@ -1637,6 +2046,7 @@ def inventory_dashboard(request):
     }
     
     return render(request, 'inventory_dashboard.html', context)
+
 
 @login_required
 def inventory_reconciliation(request):

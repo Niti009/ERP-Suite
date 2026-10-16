@@ -2,7 +2,11 @@
 
 {% block title %}Orders{% endblock %}
 {% block page_title %}Orders{% endblock %}
-{% block page_subtitle %}Review recorded customer orders and their line-item totals.{% endblock %}
+{% block page_subtitle %}Create a customer sale, track what has been paid, and follow the remaining balance.{% endblock %}
+{% block header_actions %}
+    <a class="btn btn-primary" href="{% url 'order_create' %}"><i class="fa-solid fa-plus"></i> New order</a>
+    <a class="btn btn-secondary" href="{% url 'payment_create' %}"><i class="fa-solid fa-credit-card"></i> Record payment</a>
+{% endblock %}
 
 {% block content %}
 <section class="surface" style="padding:18px;margin-bottom:18px;">
@@ -17,21 +21,43 @@
 <section class="card">
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Items</th><th>Total</th></tr></thead>
+            <thead><tr><th>Order / Customer</th><th>Items</th><th>Order total</th><th>Paid</th><th>Still to collect</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
                 {% for order in orders %}
                     <tr>
-                        <td>#{{ order.pk }}</td>
-                        <td>{{ order.customer.name }}</td>
-                        <td>{{ order.date }}</td>
-                        <td>{{ order.orderitem_set.all|length }}</td>
-                        <td>{{ order.total_amount }}</td>
+                        <td>
+                            <strong>Order #{{ order.pk }}</strong>
+                            <span class="recon-trace">{{ order.customer.name }} · {{ order.date|date:"d M Y" }}</span>
+                        </td>
+                        <td>
+                            {% for item in order.orderitem_set.all %}
+                                <span class="recon-product">{{ item.product.name|default:"Removed product" }}</span>
+                                <span class="recon-trace">{{ item.quantity }} × ₹{{ item.price|floatformat:2 }}</span>
+                            {% empty %}
+                                <span class="recon-trace">No item details available</span>
+                            {% endfor %}
+                        </td>
+                        <td>₹{{ order.total_amount|floatformat:2 }}</td>
+                        <td>₹{{ order.paid_amount|floatformat:2 }}</td>
+                        <td><strong>₹{{ order.remaining_amount|floatformat:2 }}</strong></td>
+                        <td><span class="status-badge {% if order.payment_status == 'Paid' %}badge-success{% elif order.payment_status == 'Part paid' %}badge-warning{% else %}badge-danger{% endif %}">{{ order.payment_status }}</span></td>
+                        <td>
+                            {% if order.remaining_amount %}
+                                <a class="btn btn-secondary" href="{% url 'payment_create' %}?order={{ order.pk }}">Record payment</a>
+                            {% else %}
+                                <a class="text-link" href="{% url 'payment_list' %}?q={{ order.pk }}">View payments</a>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="5"><div class="empty-state">No orders match this search.</div></td></tr>
+                    <tr><td colspan="7"><div class="empty-state">No orders yet. Add a customer order to start tracking sales and payments.</div></td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+<style>
+    .recon-trace { display:block; margin-top:3px; color:var(--muted); font-size:.76rem; }
+    .recon-product { display:block; font-weight:650; }
+</style>
 {% endblock %}

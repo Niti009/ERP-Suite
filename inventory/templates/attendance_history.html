@@ -1,185 +1,116 @@
 {% extends "base.html" %}
 
+{% block title %}Attendance History{% endblock %}
 {% block content %}
-
-<div class="flex justify-between items-center mb-8">
-
-    <div>
-
+<div class="page-header">
+    <div class="page-header-row">
+        <div>
+            <h1>{% if request.user.is_superuser %}Attendance History{% else %}My Attendance{% endif %}</h1>
+            <p>{% if request.user.is_superuser %}Review attendance records across the organization.{% else %}Review your attendance and approval history.{% endif %}</p>
+        </div>
         {% if request.user.is_superuser %}
-
-        <h1 class="text-4xl font-bold text-gray-800">
-            Attendance Management
-        </h1>
-
-        <p class="text-gray-500 mt-2">
-            View attendance records of all employees.
-        </p>
-
-        {% else %}
-
-        <h1 class="text-4xl font-bold text-gray-800">
-            My Attendance
-        </h1>
-
-        <p class="text-gray-500 mt-2">
-            View your attendance records.
-        </p>
-
+            <a class="btn btn-primary" href="{% url 'attendance_approvals' %}">
+                <i class="fa-solid fa-clipboard-check"></i> Review approvals
+            </a>
         {% endif %}
-
     </div>
-
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-<div class="bg-white rounded-2xl shadow-lg p-6">
-
-<h3 class="text-gray-500">
-
-Attendance %
-
-</h3>
-
-<h1 class="text-4xl font-bold text-green-600 mt-3">
-
-{{ attendance_percentage }}%
-
-</h1>
-
+<div class="card-grid stats-grid" style="margin-bottom:18px;">
+    <section class="card">
+        <div class="metric-label">Attendance rate in results</div>
+        <div class="metric-value">{{ attendance_percentage }}%</div>
+    </section>
+    <section class="card">
+        <div class="metric-label">Records in results</div>
+        <div class="metric-value">{{ records.paginator.count }}</div>
+    </section>
 </div>
 
-<div class="bg-white rounded-2xl shadow-lg p-6">
+<section class="surface" style="padding:18px;margin-bottom:18px;">
+    <form method="get" class="form-grid">
+        <div class="field-group">
+            <label for="attendance-date-from">From</label>
+            <input id="attendance-date-from" type="date" name="date_from" value="{{ selected_date_from }}">
+        </div>
+        <div class="field-group">
+            <label for="attendance-date-to">To</label>
+            <input id="attendance-date-to" type="date" name="date_to" value="{{ selected_date_to }}">
+        </div>
+        {% if request.user.is_superuser %}
+            <div class="field-group">
+                <label for="attendance-employee">Employee</label>
+                <select id="attendance-employee" name="employee">
+                    <option value="">All employees</option>
+                    {% for employee_id, username in employees %}
+                        <option value="{{ employee_id }}" {% if selected_employee == employee_id|stringformat:"s" %}selected{% endif %}>{{ username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
+        <div class="field-group">
+            <label for="attendance-status">Attendance status</label>
+            <select id="attendance-status" name="status">
+                <option value="">All statuses</option>
+                <option value="Present" {% if selected_status == "Present" %}selected{% endif %}>Present</option>
+                <option value="Absent" {% if selected_status == "Absent" %}selected{% endif %}>Absent</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label for="approval-status">Approval status</label>
+            <select id="approval-status" name="approval_status">
+                <option value="">All approval states</option>
+                <option value="Pending" {% if selected_approval_status == "Pending" %}selected{% endif %}>Pending</option>
+                <option value="Approved" {% if selected_approval_status == "Approved" %}selected{% endif %}>Approved</option>
+                <option value="Rejected" {% if selected_approval_status == "Rejected" %}selected{% endif %}>Rejected</option>
+            </select>
+        </div>
+        <div class="header-actions--page" style="align-self:end;">
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-filter"></i> Apply filters</button>
+            <a href="{% url 'attendance_history' %}" class="btn btn-secondary">Clear</a>
+        </div>
+    </form>
+</section>
 
-<h3 class="text-gray-500">
-
-Total Records
-
-</h3>
-
-<h1 class="text-4xl font-bold text-blue-600 mt-3">
-
-{{ records|length }}
-
-</h1>
-
-</div>
-
-<div class="bg-white rounded-2xl shadow-lg p-6">
-
-<h3 class="text-gray-500">
-
-System Status
-
-</h3>
-
-<h1 class="text-2xl font-bold text-slate-700 mt-4">
-
-Active
-
-</h1>
-
-</div>
-
-</div>
-
-<div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-
-<table class="w-full">
-
-<thead class="bg-slate-800 text-white">
-
-<tr>
-
-{% if request.user.is_superuser %}
-<th class="p-5 text-left">Employee</th>
+<section class="card" style="padding:0;overflow:hidden;">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    {% if request.user.is_superuser %}<th>Employee</th>{% endif %}
+                    <th>Date</th>
+                    <th>Check-in</th>
+                    <th>Check-out</th>
+                    <th>Status</th>
+                    <th>Approval</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        {% if request.user.is_superuser %}<td>{{ record.employee.get_full_name|default:record.employee.username }}</td>{% endif %}
+                        <td>{{ record.date|date:"Y-m-d" }}</td>
+                        <td>{{ record.check_in|time:"H:i"|default:"—" }}</td>
+                        <td>{{ record.check_out|time:"H:i"|default:"—" }}</td>
+                        <td><span class="status-badge {% if record.status == 'Present' %}badge-success{% else %}badge-neutral{% endif %}">{{ record.status }}</span></td>
+                        <td>
+                            <span class="status-badge {% if record.approval_status == 'Approved' %}badge-success{% elif record.approval_status == 'Rejected' %}badge-danger{% else %}badge-warning{% endif %}">
+                                {{ record.approval_status }}
+                            </span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="{% if request.user.is_superuser %}6{% else %}5{% endif %}"><div class="empty-state">No attendance records match these filters.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% if records.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Attendance pages">
+        {% if records.has_previous %}<a href="?{{ request.GET.urlencode }}&page={{ records.previous_page_number }}">Previous</a>{% endif %}
+        <span class="current" aria-current="page">{{ records.number }} of {{ records.paginator.num_pages }}</span>
+        {% if records.has_next %}<a href="?{{ request.GET.urlencode }}&page={{ records.next_page_number }}">Next</a>{% endif %}
+    </nav>
 {% endif %}
-
-<th class="p-5 text-left">Date</th>
-
-<th class="p-5 text-left">Check In</th>
-
-<th class="p-5 text-left">Check Out</th>
-
-<th class="p-5 text-left">Status</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-{% for record in records %}
-
-<tr class="border-b hover:bg-slate-50">
-
-{% if request.user.is_superuser %}
-<td class="p-5 font-semibold">
-{{ record.employee.username }}
-</td>
-{% endif %}
-
-<td class="p-5">
-
-{{ record.date }}
-
-</td>
-
-<td class="p-5">
-
-{{ record.check_in|default:"--" }}
-
-</td>
-
-<td class="p-5">
-
-{{ record.check_out|default:"--" }}
-
-</td>
-
-<td class="p-5">
-
-{% if record.status == "Present" %}
-
-<span class="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm">
-
-Present
-
-</span>
-
-{% else %}
-
-<span class="bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm">
-
-Absent
-
-</span>
-
-{% endif %}
-
-</td>
-
-</tr>
-
-{% empty %}
-
-<tr>
-
-<td colspan="{% if request.user.is_superuser %}5{% else %}4{% endif %}" class="text-center p-10 text-gray-500">
-
-No attendance records found.
-
-</td>
-
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
-
-</div>
-
 {% endblock %}

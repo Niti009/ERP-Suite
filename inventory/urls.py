@@ -54,12 +54,16 @@ urlpatterns = [
     path('inventory/reconcile/', views.inventory_reconciliation, name='inventory_reconciliation'),
     path('inventory/reconcile/sample.csv', views.download_manifest_template, name='download_manifest_template'),
     path('orders/', views.order_list, name='order_list'),
+    path('orders/add/', views.order_create, name='order_create'),
     path('payments/', views.payment_list, name='payment_list'),
+    path('payments/add/', views.payment_create, name='payment_create'),
+    path('payments/<int:payment_id>/', views.payment_detail, name='payment_detail'),
 
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/add/', views.add_customer, name='add_customer'),
 
     path('upload/', views.upload_file, name='upload_file'),
+    path('documents/<int:document_id>/download/', views.download_uploaded_file, name='download_uploaded_file'),
 
     # Feature 2: Notifications
     path('notifications/', views.notifications_list, name='notifications_list'),

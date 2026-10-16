@@ -2,7 +2,12 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import PasswordChangeForm
 from django.db import transaction
-from .models import Product, Customer, LeaveApplication, UploadedFile, Employee
+from django.db.models import F, Q, Sum
+from django.core.exceptions import ValidationError
+from django.forms.models import BaseInlineFormSet
+from django.forms import inlineformset_factory
+from pathlib import Path
+from .models import Product, Customer, LeaveApplication, UploadedFile, Employee, Order, OrderItem, Payment
 
 
 class ProductForm(forms.ModelForm):
@@ -22,6 +27,14 @@ class LeaveApplicationForm(forms.ModelForm):
         model = LeaveApplication
         fields = ['start_date', 'end_date', 'reason']  # 🔥 REMOVE leave_type
 
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        if start_date and end_date and end_date < start_date:
+            self.add_error('end_date', 'The end date must be on or after the start date.')
+        return cleaned_data
+
 
 class UploadedFileForm(forms.ModelForm):
     class Meta:
@@ -33,6 +46,184 @@ class FileUploadForm(forms.ModelForm):
     class Meta:
         model = UploadedFile
         fields = ['file']
+        widgets = {
+            'file': forms.ClearableFileInput(attrs={
+                'accept': '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg',
+            }),
+        }
+
+    def clean_file(self):
+        uploaded_file = self.cleaned_data['file']
+        allowed_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.png', '.jpg', '.jpeg'}
+        extension = Path(uploaded_file.name).suffix.lower()
+        if extension not in allowed_extensions:
+            raise forms.ValidationError(
+                'Upload a PDF, Word, Excel, CSV, text, or image document.'
+            )
+        if uploaded_file.size > 20 * 1024 * 1024:
+            raise forms.ValidationError('Files must be 20 MB or smaller.')
+        return uploaded_file
+
+
+class OrderChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, order):
+        recorded = order.recorded_payments or 0
+        balance = order.total_amount - recorded
+        return f"Order #{order.pk} — {order.customer.name} • Remaining: ₹{balance:,.2f}"
+
+
+class PaymentForm(forms.ModelForm):
+    PAYMENT_METHOD_CHOICES = (
+        ('Cash', 'Cash'),
+        ('UPI', 'UPI'),
+        ('Card', 'Credit / debit card'),
+        ('Bank transfer', 'Bank transfer'),
+        ('Cheque', 'Cheque'),
+        ('Other', 'Other'),
+    )
+
+    order = OrderChoiceField(
+        queryset=Order.objects.none(),
+        label='Order',
+        widget=forms.Select(attrs={'data-payment-order': 'true'}),
+    )
+    amount = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=0.01,
+        widget=forms.NumberInput(attrs={'min': '0.01', 'step': '0.01'}),
+    )
+    payment_method = forms.ChoiceField(choices=PAYMENT_METHOD_CHOICES)
+    other_payment_method = forms.CharField(
+        max_length=50,
+        required=False,
+        label='Specify payment method',
+        widget=forms.TextInput(attrs={'placeholder': 'Enter payment method'}),
+    )
+
+    class Meta:
+        model = Payment
+        fields = ['order', 'amount', 'payment_method', 'other_payment_method']
+        widgets = {
+            'order': forms.Select(),
+            'payment_method': forms.Select(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["order"].help_text = "Choose the customer order this payment is for."
+        self.fields["amount"].label = "Amount received"
+        self.fields["amount"].help_text = "Enter a full or partial amount already received."
+        self.fields["payment_method"].label = "How did the customer pay?"
+        self.fields["other_payment_method"].label = "Other payment method"
+        self.fields['order'].queryset = (
+            Order.objects.select_related('customer')
+            .annotate(recorded_payments=Sum('payment__amount'))
+            .filter(Q(recorded_payments__isnull=True) | Q(total_amount__gt=F('recorded_payments')))
+            .order_by('-date', '-pk')
+        )
+        self.fields['order'].widget.choices = [
+            ("", "Choose an order")
+        ] + [
+            (
+                order.pk,
+                self.fields['order'].label_from_instance(order),
+            )
+            for order in self.fields['order'].queryset
+        ]
+
+    def clean_payment_method(self):
+        return self.cleaned_data['payment_method'].strip()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        method = cleaned_data.get('payment_method')
+        other_method = cleaned_data.get('other_payment_method', '').strip()
+        if method == 'Other':
+            if not other_method:
+                self.add_error('other_payment_method', 'Enter the payment method used.')
+            else:
+                cleaned_data['payment_method'] = other_method
+        elif other_method:
+            self.add_error(
+                'other_payment_method',
+                'Choose “Other” before entering a custom payment method.',
+            )
+
+        order = cleaned_data.get('order')
+        amount = cleaned_data.get('amount')
+        if order and amount:
+            paid_amount = (
+                Payment.objects.filter(order=order).aggregate(total=Sum('amount'))['total'] or 0
+            )
+            if amount > order.total_amount - paid_amount:
+                self.add_error(
+                    'amount',
+                    "The payment cannot exceed the order's remaining balance.",
+                )
+        return cleaned_data
+
+
+class OrderCreateForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = ["customer"]
+
+
+class OrderItemForm(forms.ModelForm):
+    class Meta:
+        model = OrderItem
+        fields = ["product", "quantity"]
+        widgets = {
+            "product": forms.Select(attrs={"class": "order-product"}),
+            "quantity": forms.NumberInput(attrs={"min": "1", "step": "1"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["product"].queryset = Product.objects.order_by("name")
+
+    def clean_quantity(self):
+        quantity = self.cleaned_data["quantity"]
+        if quantity < 1:
+            raise forms.ValidationError("Enter a quantity of at least 1.")
+        product = self.cleaned_data.get("product")
+        if product and quantity > product.quantity:
+            raise forms.ValidationError(
+                f"Only {product.quantity} units are currently in stock."
+            )
+        return quantity
+
+
+class OrderItemFormSetBase(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+
+        selected_products = []
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get("DELETE"):
+                product = form.cleaned_data.get("product")
+                if product:
+                    selected_products.append(product.pk)
+
+        if not selected_products:
+            raise ValidationError("Add at least one product to this order.")
+        if len(selected_products) != len(set(selected_products)):
+            raise ValidationError(
+                "Each product can appear only once. Increase its quantity on one line."
+            )
+
+
+OrderItemFormSet = inlineformset_factory(
+    Order,
+    OrderItem,
+    form=OrderItemForm,
+    formset=OrderItemFormSetBase,
+    extra=1,
+    can_delete=True,
+)
 
 
 class UserProfileForm(forms.ModelForm):

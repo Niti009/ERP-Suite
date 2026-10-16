@@ -20,7 +20,7 @@ Use these Render commands:
 - Pre-deploy: `python manage.py migrate`
 - Start: `gunicorn erp_system.wsgi:application`
 
-This deployment uses SQLite at `BASE_DIR / "db.sqlite3"`. Attach a persistent Render disk mounted at the project root (the directory containing `manage.py`) so the database survives deploys and restarts. Do not configure PostgreSQL or `DATABASE_URL` for this application. SQLite is intended for a single web instance; do not scale the service horizontally.
+This deployment uses SQLite at `BASE_DIR / "db.sqlite3"`. Render Free filesystems are ephemeral, so the database and uploaded files are not guaranteed to survive a restart or redeploy on that tier. A persistent disk can only be used where the Render plan supports it and must be mounted/configured explicitly. Do not configure PostgreSQL or `DATABASE_URL` for this application. SQLite is intended for a single web instance; do not scale the service horizontally.
 
 Set these environment variables in the Render service dashboard; never commit their values:
 
