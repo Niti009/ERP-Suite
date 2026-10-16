@@ -74,7 +74,12 @@
             overflow-y: auto;
             flex-shrink: 0;
         }
-        .sidebar-close { display:none; }
+        .sidebar-close {
+            display:inline-flex; width:36px; height:36px; flex:0 0 36px;
+            align-items:center; justify-content:center; border:1px solid rgba(203,213,225,.35);
+            border-radius:10px; background:rgba(255,255,255,.08); color:#f8fafc; cursor:pointer;
+        }
+        .sidebar-close:hover { background:rgba(255,255,255,.16); }
         .sidebar-backdrop { display:none; }
         .brand {
             display: flex;
@@ -158,7 +163,8 @@
             box-shadow: var(--shadow-soft);
         }
         .topbar-left { display:flex; align-items:center; gap:12px; }
-        .mobile-toggle { display:none; }
+        .mobile-toggle { display:inline-flex; min-height:42px; min-width:44px; }
+        .mobile-toggle-label { display:inline; }
         .topbar-brand { display:none; align-items:center; gap:8px; color:var(--primary); font-weight:750; white-space:nowrap; }
         .topbar-brand-icon {
             width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;
@@ -327,14 +333,17 @@
         .shadow-xl, .shadow-2xl { box-shadow: var(--shadow) !important; }
         .text-4xl { font-size: 2rem !important; line-height: 1.2 !important; }
         .text-3xl { font-size: 1.65rem !important; line-height: 1.25 !important; }
+        @media (min-width: 1025px) {
+            .sidebar { transition: width .2s ease, padding .2s ease; }
+            .sidebar.collapsed {
+                width:0; flex-basis:0; padding-left:0; padding-right:0;
+                border-right:0; overflow:hidden; visibility:hidden;
+            }
+        }
         @media (max-width: 1024px) {
             .sidebar { width:min(280px, calc(100vw - 56px)); position: fixed; left:0; top:0; transform: translateX(-101%); transition: transform .2s ease; z-index: 50; box-shadow: 0 20px 40px rgba(15,23,42,.24); }
             .sidebar.open { transform: translateX(0); }
-            .sidebar-close { display:inline-flex; width:36px; height:36px; flex:0 0 36px; align-items:center; justify-content:center; border:1px solid rgba(203,213,225,.35); border-radius:10px; background:rgba(255,255,255,.08); color:#f8fafc; cursor:pointer; }
-            .sidebar-close:hover { background:rgba(255,255,255,.16); }
             .sidebar-backdrop.is-visible { display:block; position:fixed; inset:0; z-index:49; width:100%; height:100%; border:0; background:rgba(15,23,42,.48); }
-            .mobile-toggle { display:inline-flex; min-height:42px; min-width:44px; }
-            .mobile-toggle-label { display:inline; }
             .topbar-brand { display:inline-flex; }
             .topbar-left { min-width:0; flex:1; }
             .search-form { flex:1; min-width:0; }
@@ -385,7 +394,7 @@
                     <p>Operations</p>
                 </div>
             </div>
-            <button class="sidebar-close" type="button" aria-label="Close navigation" title="Close navigation" onclick="closeSidebar()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            <button class="sidebar-close" type="button" aria-label="Close navigation" title="Close navigation" onclick="collapseSidebar()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </div>
 
         <div class="nav-group">
@@ -583,7 +592,9 @@
         const backdrop = document.getElementById('sidebar-backdrop');
         const toggle = document.querySelector('.mobile-toggle');
         if (!sidebar || !backdrop || !toggle) return;
+        const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
         sidebar.classList.toggle('open', isOpen);
+        sidebar.classList.toggle('collapsed', isDesktop && !isOpen);
         backdrop.classList.toggle('is-visible', isOpen);
         toggle.setAttribute('aria-expanded', String(isOpen));
         toggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
@@ -598,11 +609,27 @@
     }
 
     function toggleSidebar() {
-        setSidebarOpen(!document.getElementById('sidebar').classList.contains('open'));
+        const sidebar = document.getElementById('sidebar');
+        const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
+        const isOpen = isDesktop
+            ? !sidebar.classList.contains('collapsed')
+            : sidebar.classList.contains('open');
+        setSidebarOpen(!isOpen);
     }
 
     function closeSidebar() {
-        setSidebarOpen(false);
+        if (window.matchMedia('(max-width: 1024px)').matches) {
+            setSidebarOpen(false);
+        }
+    }
+
+    function collapseSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (window.matchMedia('(min-width: 1025px)').matches) {
+            setSidebarOpen(sidebar.classList.contains('collapsed'));
+        } else {
+            setSidebarOpen(false);
+        }
     }
 
     document.querySelectorAll('#sidebar .nav-item').forEach((link) => {
@@ -611,6 +638,9 @@
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') closeSidebar();
     });
+    if (window.matchMedia('(min-width: 1025px)').matches) {
+        setSidebarOpen(true);
+    }
 </script>
 </body>
 </html>
