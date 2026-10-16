@@ -5,6 +5,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.core.mail import send_mail
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.decorators import login_required
@@ -51,6 +52,7 @@ from .forms import (
     EmployeeCreateForm,
 )
 from .permissions import demo_read_only, is_demo_user
+from .reconciliation import MAX_MANIFEST_SIZE, reconcile_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -1635,3 +1637,141 @@ def inventory_dashboard(request):
     }
     
     return render(request, 'inventory_dashboard.html', context)
+
+@login_required
+def inventory_reconciliation(request):
+    preview_key = "inventory_reconciliation_previews"
+    if request.method == "POST":
+        if is_demo_user(request.user):
+            messages.error(
+                request,
+                "Demo mode is read-only. Please sign in with a full account to make changes.",
+            )
+            return redirect("inventory_reconciliation")
+        previews = request.session.get(preview_key, {})
+        if request.POST.get("action") == "confirm":
+            preview_id = request.POST.get("preview_id", "")
+            preview = previews.get(preview_id)
+            if not preview or timezone.now().timestamp() - preview["created_at"] > 20 * 60:
+                previews.pop(preview_id, None)
+                request.session[preview_key] = previews
+                messages.error(request, "That preview has expired. Upload the manifest again.")
+                return redirect("inventory_reconciliation")
+
+            rows_to_apply = [
+                row for row in preview["report"]["rows"] if row["status"] == "matched"
+            ]
+            filename = preview["filename"]
+            stale_preview = False
+            with transaction.atomic():
+                products = {
+                    product.pk: product
+                    for product in Product.objects.select_for_update().filter(
+                        pk__in=[row["product_id"] for row in rows_to_apply]
+                    )
+                }
+                stale_preview = any(
+                    row["product_id"] not in products
+                    or products[row["product_id"]].quantity != row["current_quantity"]
+                    or products[row["product_id"]].name != row["product_name"]
+                    for row in rows_to_apply
+                )
+                if not stale_preview:
+                    for row in rows_to_apply:
+                        product = products[row["product_id"]]
+                        old_quantity = product.quantity
+                        product.quantity = row["quantity"]
+                        product.save(update_fields=["quantity"])
+                        ActivityLog.objects.create(
+                            user=request.user,
+                            action_type="inventory_reconciled",
+                            object_type="product",
+                            object_id=product.pk,
+                            description=(
+                                f"Stock reconciled from {filename}, manifest row "
+                                f"{row['row_number']}: {old_quantity} to "
+                                f"{product.quantity} units; matched by {row['match_method']}."
+                            ),
+                        )
+            if stale_preview:
+                previews.pop(preview_id, None)
+                request.session[preview_key] = previews
+                messages.error(
+                    request,
+                    "Inventory changed after this preview. Upload the manifest again to review the latest stock.",
+                )
+                return redirect("inventory_reconciliation")
+
+            previews.pop(preview_id, None)
+            request.session[preview_key] = previews
+            messages.success(
+                request,
+                f"Reconciled stock for {len(rows_to_apply)} product"
+                f"{'' if len(rows_to_apply) == 1 else 's'}.",
+            )
+            return redirect("inventory_reconciliation")
+
+        uploaded_file = request.FILES.get("manifest")
+        if not uploaded_file:
+            messages.error(request, "Choose a CSV manifest to preview.")
+            return redirect("inventory_reconciliation")
+        if Path(uploaded_file.name).suffix.lower() != ".csv":
+            messages.error(request, "Upload a CSV file. Download the sample for the expected format.")
+            return redirect("inventory_reconciliation")
+        if uploaded_file.size > MAX_MANIFEST_SIZE:
+            messages.error(request, "Manifest files must be 2 MB or smaller.")
+            return redirect("inventory_reconciliation")
+
+        try:
+            report = reconcile_manifest(uploaded_file)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("inventory_reconciliation")
+
+        now = timezone.now().timestamp()
+        previews = {
+            key: value
+            for key, value in previews.items()
+            if now - value.get("created_at", 0) <= 20 * 60
+        }
+        preview_id = secrets.token_urlsafe(18)
+        previews[preview_id] = {
+            "created_at": now,
+            "filename": Path(uploaded_file.name).name[:150],
+            "report": report,
+        }
+        request.session[preview_key] = previews
+        return redirect(f"{reverse('inventory_reconciliation')}?preview={preview_id}")
+
+    previews = request.session.get(preview_key, {})
+    preview_id = request.GET.get("preview", "")
+    preview = previews.get(preview_id)
+    if preview and timezone.now().timestamp() - preview["created_at"] > 20 * 60:
+        previews.pop(preview_id, None)
+        request.session[preview_key] = previews
+        preview = None
+        messages.info(request, "That preview has expired. Upload the manifest again.")
+
+    return render(
+        request,
+        "inventory_reconciliation.html",
+        {
+            "preview": preview,
+            "preview_id": preview_id if preview else "",
+            "erp_breadcrumbs": [
+                {"label": "Home", "url": reverse("dashboard")},
+                {"label": "Inventory", "url": reverse("inventory_dashboard")},
+                {"label": "Reconciliation", "url": None},
+            ],
+        },
+    )
+
+
+@login_required
+def download_manifest_template(request):
+    response = HttpResponse(
+        "product_id,product_name,quantity\r\n1,Ergonomic Desk,12\r\n",
+        content_type="text/csv; charset=utf-8",
+    )
+    response["Content-Disposition"] = 'attachment; filename="stock-manifest-example.csv"'
+    return response

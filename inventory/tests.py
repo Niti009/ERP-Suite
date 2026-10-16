@@ -12,6 +12,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from .models import (
+    ActivityLog,
     Attendance,
     Customer,
     Department,
@@ -562,3 +563,139 @@ class EmployeeNotificationWorkflowTests(TestCase):
                 title="Employee document uploaded",
             ).exists()
         )
+
+class InventoryReconciliationTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(
+            username="reconcile.admin",
+            email="reconcile.admin@example.com",
+            password="Strong-test-password-2026",
+        )
+        self.product = Product.objects.create(
+            name="Ergonomic Desk",
+            quantity=8,
+            price="499.00",
+        )
+        self.url = reverse("inventory_reconciliation")
+        self.client.force_login(self.admin)
+
+    def upload_manifest(self, content, filename="stock.csv"):
+        return self.client.post(
+            self.url,
+            {
+                "manifest": SimpleUploadedFile(
+                    filename,
+                    content.encode("utf-8"),
+                    content_type="text/csv",
+                )
+            },
+        )
+
+    def test_manifest_preview_cross_references_by_normalized_name_without_mutating_stock(self):
+        response = self.upload_manifest("product_name,quantity\n  ERGONOMIC   desk ,12\n")
+
+        self.assertEqual(response.status_code, 302)
+        report_response = self.client.get(response.url)
+        self.assertContains(report_response, "Will update")
+        self.assertContains(report_response, "Exact name")
+        self.assertContains(report_response, "8")
+        self.assertContains(report_response, "12")
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 8)
+        self.assertFalse(ActivityLog.objects.filter(action_type="inventory_reconciled").exists())
+
+    def test_confirmation_applies_updates_and_records_cross_reference_audit(self):
+        preview_redirect = self.upload_manifest(
+            f"product_id,product_name,quantity\n{self.product.pk},Ergonomic Desk,12\n"
+        )
+        preview_id = preview_redirect.url.split("preview=", 1)[1]
+
+        response = self.client.post(
+            self.url,
+            {"action": "confirm", "preview_id": preview_id},
+            follow=True,
+        )
+
+        self.assertContains(response, "Reconciled stock for 1 product")
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 12)
+        log = ActivityLog.objects.get(action_type="inventory_reconciled")
+        self.assertEqual(log.object_id, self.product.pk)
+        self.assertIn("manifest row 2", log.description)
+        self.assertIn("Product ID", log.description)
+
+    def test_mismatched_references_and_duplicate_rows_are_excluded_from_corrections(self):
+        other_product = Product.objects.create(
+            name="Standing Desk",
+            quantity=4,
+            price="599.00",
+        )
+        content = (
+            "product_id,product_name,quantity\n"
+            f"{self.product.pk},Standing Desk,20\n"
+            f"{other_product.pk},Standing Desk,10\n"
+            f"{other_product.pk},Standing Desk,11\n"
+        )
+        preview_redirect = self.upload_manifest(content)
+        report_response = self.client.get(preview_redirect.url)
+
+        self.assertContains(report_response, "Skipped")
+        self.assertContains(report_response, "ID and product name point to different records")
+        self.assertContains(report_response, "3 skipped")
+        self.assertNotContains(report_response, "Apply 3 correction")
+        self.product.refresh_from_db()
+        other_product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 8)
+        self.assertEqual(other_product.quantity, 4)
+
+    def test_stale_preview_is_rejected_without_overwriting_new_stock(self):
+        preview_redirect = self.upload_manifest(
+            f"product_id,quantity\n{self.product.pk},12\n"
+        )
+        preview_id = preview_redirect.url.split("preview=", 1)[1]
+        self.product.quantity = 9
+        self.product.save(update_fields=["quantity"])
+
+        response = self.client.post(
+            self.url,
+            {"action": "confirm", "preview_id": preview_id},
+            follow=True,
+        )
+
+        self.assertContains(response, "Inventory changed after this preview")
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 9)
+        self.assertFalse(ActivityLog.objects.filter(action_type="inventory_reconciled").exists())
+
+    def test_invalid_format_and_manifest_schema_show_clear_errors(self):
+        wrong_extension = self.upload_manifest("product_name,quantity\nErgonomic Desk,12\n", "stock.xlsx")
+        self.assertRedirects(wrong_extension, self.url, fetch_redirect_response=False)
+        self.assertContains(self.client.get(self.url), "Upload a CSV file")
+
+        missing_quantity = self.upload_manifest("product_name\nErgonomic Desk\n")
+        self.assertRedirects(missing_quantity, self.url, fetch_redirect_response=False)
+        self.assertContains(self.client.get(self.url), "Add a quantity column")
+
+    def test_sample_manifest_download_has_expected_headers(self):
+        response = self.client.get(reverse("download_manifest_template"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/csv", response["Content-Type"])
+        self.assertTrue(response.content.startswith(b"product_id,product_name,quantity"))
+
+    def test_demo_user_can_view_reconciliation_but_cannot_upload_a_manifest(self):
+        demo_user = get_user_model().objects.create_user(
+            username=settings.DEMO_LOGIN_USERNAME,
+            email="reconcile.demo@example.com",
+            password="Strong-test-password-2026",
+        )
+        self.client.force_login(demo_user)
+
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        response = self.upload_manifest(
+            f"product_id,quantity\n{self.product.pk},12\n"
+        )
+
+        self.assertRedirects(response, self.url)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 8)

@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #f6f7fc;
@@ -34,7 +37,7 @@
         html { scroll-behavior: smooth; }
         body {
             margin: 0;
-            font-family: "Segoe UI", Inter, Arial, sans-serif;
+            font-family: "DM Sans", "Segoe UI", sans-serif;
             font-size: 14px;
             line-height: 1.45;
             letter-spacing: -0.01em;
@@ -43,6 +46,7 @@
         }
         a { text-decoration: none; color: inherit; }
         h1, h2, h3, h4, h5, h6 {
+            font-family: "Space Grotesk", "DM Sans", sans-serif;
             margin: 0;
             letter-spacing: -0.03em;
             line-height: 1.15;
@@ -370,7 +374,7 @@
                 <span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
                 <span>Products</span>
             </a>
-            <a class="nav-item {% if request.resolver_match.url_name == 'inventory_dashboard' %}active{% endif %}" href="{% url 'inventory_dashboard' %}">
+            <a class="nav-item {% if request.resolver_match.url_name == 'inventory_dashboard' or request.resolver_match.url_name == 'inventory_reconciliation' %}active{% endif %}" href="{% url 'inventory_dashboard' %}">
                 <span class="nav-icon"><i class="fa-solid fa-warehouse"></i></span>
                 <span>Inventory</span>
             </a>

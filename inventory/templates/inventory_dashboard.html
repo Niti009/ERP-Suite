@@ -17,13 +17,22 @@
             </p>
         </div>
 
-        <a
-            href="{% url 'add_product' %}"
-            class="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
-        >
-            <i class="fa-solid fa-plus mr-2"></i>
-            Add Product
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            <a
+                href="{% url 'inventory_reconciliation' %}"
+                class="inline-flex items-center justify-center px-5 py-3 bg-white border border-gray-200 text-slate-800 font-semibold rounded-xl transition"
+            >
+                <i class="fa-solid fa-arrows-rotate mr-2"></i>
+                Reconcile manifest
+            </a>
+            <a
+                href="{% url 'add_product' %}"
+                class="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition"
+            >
+                <i class="fa-solid fa-plus mr-2"></i>
+                Add Product
+            </a>
+        </div>
 
     </div>
 

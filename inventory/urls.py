@@ -51,6 +51,8 @@ urlpatterns = [
     path('products/', views.product_list, name='product_list'),
     path('products/add/', views.add_product, name='add_product'),
     path('inventory/', views.inventory_dashboard, name='inventory_dashboard'),
+    path('inventory/reconcile/', views.inventory_reconciliation, name='inventory_reconciliation'),
+    path('inventory/reconcile/sample.csv', views.download_manifest_template, name='download_manifest_template'),
     path('orders/', views.order_list, name='order_list'),
     path('payments/', views.payment_list, name='payment_list'),
 

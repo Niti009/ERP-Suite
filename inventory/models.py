@@ -206,6 +206,7 @@ class ActivityLog(models.Model):
         ('customer_added', 'Customer Added'),
         ('customer_updated', 'Customer Updated'),
         ('document_uploaded', 'Document Uploaded'),
+        ('inventory_reconciled', 'Inventory Reconciled'),
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activity_logs')

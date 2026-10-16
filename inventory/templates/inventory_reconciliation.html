@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Stock reconciliation | ERP Suite{% endblock %}
+{% block page_title %}Reconcile stock{% endblock %}
+{% block page_subtitle %}Bring your product quantities in line with a stock manifest.{% endblock %}
+
+{% block content %}
+<style>
+    .recon-panel { overflow:hidden; background:#fff; border:1px solid #e3e8f2; border-radius:18px; box-shadow:0 12px 30px rgba(20,32,58,.055); }
+    .recon-content { padding:24px; }
+    .recon-lead { margin:0; color:#5d687b; font-size:.94rem; line-height:1.6; }
+    .recon-upload { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:20px; }
+    .recon-upload input { max-width:100%; padding:11px; border:1px solid #dfe4ee; border-radius:10px; background:#fafbff; font:inherit; font-size:.86rem; }
+    .recon-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 16px; border:0; border-radius:11px; background:#4f46e5; color:#fff; font:inherit; font-size:.88rem; font-weight:700; cursor:pointer; transition:background .18s ease, transform .18s ease; }
+    .recon-button:hover { background:#3f37c9; transform:translateY(-1px); }
+    .recon-button-secondary { border:1px solid #dfe4ee; background:#fff; color:#253149; text-decoration:none; }
+    .recon-button-secondary:hover { background:#f7f8fc; }
+    .recon-hint { margin:14px 0 0; color:#788296; font-size:.82rem; }
+    .recon-hint a { color:#4f46e5; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+    .recon-details { margin-top:17px; color:#667085; font-size:.82rem; }
+    .recon-details summary { width:fit-content; color:#4f46e5; font-weight:700; cursor:pointer; }
+    .recon-details p { margin:8px 0 0; line-height:1.55; }
+    .recon-report { margin-top:20px; }
+    .recon-report-heading { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .recon-report-heading h2 { font-size:1.2rem; }
+    .recon-report-heading p { margin:5px 0 0; color:#788296; font-size:.84rem; }
+    .recon-stats { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; }
+    .recon-stat { padding:7px 11px; border-radius:999px; background:#f2f3fb; color:#37425a; font-size:.78rem; font-weight:700; }
+    .recon-stat--update { background:#fff3df; color:#92500b; }
+    .recon-stat--skip { background:#fff0ed; color:#a33328; }
+    .recon-table-wrap { overflow-x:auto; margin:18px -24px 0; }
+    .recon-table { width:100%; min-width:560px; border-collapse:collapse; text-align:left; font-size:.84rem; }
+    .recon-table th { padding:11px 24px; background:#f7f8fc; color:#647084; font-size:.68rem; letter-spacing:.07em; text-transform:uppercase; }
+    .recon-table td { padding:13px 24px; border-top:1px solid #edf0f5; vertical-align:top; color:#354052; }
+    .recon-table tr:hover td { background:#fbfcff; }
+    .recon-product { display:block; color:#202a3d; font-weight:700; }
+    .recon-trace { display:block; margin-top:3px; color:#788296; font-size:.75rem; line-height:1.45; }
+    .recon-quantity { color:#202a3d; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+    .recon-status { display:inline-flex; padding:5px 9px; border-radius:999px; font-size:.72rem; font-weight:750; white-space:nowrap; }
+    .recon-status--matched { background:#fff3df; color:#92500b; }
+    .recon-status--synced { background:#e8f7ee; color:#167545; }
+    .recon-status--unresolved { background:#fff0ed; color:#a33328; }
+    .recon-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:18px; }
+    .recon-caution { color:#788296; font-size:.8rem; }
+    .recon-empty { margin-top:16px; padding:12px 14px; border-radius:11px; background:#f2f8f4; color:#20633e; font-size:.86rem; }
+    @media (max-width:560px) { .recon-content { padding:18px; } .recon-table-wrap { margin-right:-18px; margin-left:-18px; } .recon-table th,.recon-table td { padding-right:18px; padding-left:18px; } }
+</style>
+
+<section class="recon-panel" aria-labelledby="upload-heading">
+    <div class="recon-content">
+        <h2 id="upload-heading" style="margin:0 0 6px;font-size:1.12rem;">Upload a CSV manifest</h2>
+        <p class="recon-lead">We’ll match products, show you what will change, and wait for your confirmation before updating stock.</p>
+        <form method="post" enctype="multipart/form-data" class="recon-upload">
+            {% csrf_token %}
+            <label for="manifest-file" class="sr-only">Choose a stock manifest CSV file</label>
+            <input id="manifest-file" type="file" name="manifest" accept=".csv,text/csv" required>
+            <button class="recon-button" type="submit"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>Compare stock</button>
+            <a class="recon-button recon-button-secondary" href="{% url 'download_manifest_template' %}"><i class="fa-solid fa-download" aria-hidden="true"></i>Sample CSV</a>
+        </form>
+        <p class="recon-hint">CSV only · maximum 2 MB and 2,000 rows.</p>
+        <details class="recon-details">
+            <summary>What should my CSV contain?</summary>
+            <p>Include a quantity column and either product_id or product_name. We match IDs first, then unique exact product names. Conflicting or unclear rows are skipped safely.</p>
+        </details>
+    </div>
+</section>
+
+{% if preview %}
+    <section class="recon-panel recon-report" aria-labelledby="report-heading">
+        <div class="recon-content">
+            <div class="recon-report-heading">
+                <div>
+                    <h2 id="report-heading">Review changes</h2>
+                    <p>{{ preview.filename }}</p>
+                </div>
+            </div>
+            <div class="recon-stats" aria-label="Comparison summary">
+                <span class="recon-stat recon-stat--update">{{ preview.report.counts.matched }} correction{{ preview.report.counts.matched|pluralize }}</span>
+                <span class="recon-stat">{{ preview.report.counts.synced }} already in sync</span>
+                {% if preview.report.counts.unresolved %}<span class="recon-stat recon-stat--skip">{{ preview.report.counts.unresolved }} skipped · check details below</span>{% endif %}
+            </div>
+
+            <div class="recon-table-wrap">
+                <table class="recon-table">
+                    <thead>
+                        <tr><th>Product and match</th><th>Stock now → manifest</th><th>Result</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in preview.report.rows %}
+                            <tr>
+                                <td>
+                                    <span class="recon-product">{% if row.product_name %}{{ row.product_name }}{% elif row.manifest_name %}{{ row.manifest_name }}{% elif row.manifest_id %}Product ID {{ row.manifest_id }}{% else %}Manifest row {{ row.row_number }}{% endif %}</span>
+                                    {% if row.match_method %}<span class="recon-trace">Matched by {{ row.match_method }} · row {{ row.row_number }}</span>
+                                    {% elif row.detail %}<span class="recon-trace">{{ row.detail }}</span>{% endif %}
+                                </td>
+                                <td class="recon-quantity">
+                                    {% if row.product_name %}{{ row.current_quantity }} → {{ row.quantity }}
+                                    {% elif row.status == "invalid" %}—
+                                    {% else %}— → {{ row.quantity }}{% endif %}
+                                </td>
+                                <td>
+                                    {% if row.status == "matched" %}<span class="recon-status recon-status--matched">Will update</span>
+                                    {% elif row.status == "synced" %}<span class="recon-status recon-status--synced">In sync</span>
+                                    {% else %}<span class="recon-status recon-status--unresolved">Skipped</span>{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if preview.report.counts.matched %}
+                <div class="recon-actions">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="confirm">
+                        <input type="hidden" name="preview_id" value="{{ preview_id }}">
+                        <button class="recon-button" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i>Apply {{ preview.report.counts.matched }} correction{{ preview.report.counts.matched|pluralize }}</button>
+                    </form>
+                    <span class="recon-caution">Only the listed matched rows will change. Updates are recorded in the activity log.</span>
+                </div>
+            {% else %}
+                <div class="recon-empty">Everything matched. No stock changes are needed.</div>
+            {% endif %}
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

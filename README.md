@@ -6,6 +6,12 @@ https://erp-suite-idzu.onrender.com
 
 Click **🚀 Explore Demo** to explore the application without creating an account.
 
+## Stock Manifest Reconciliation
+
+Open **Inventory → Reconcile manifest** to compare a UTF-8 CSV stock manifest with product inventory. Include a `quantity` column and either `product_id` or `product_name`; the sample CSV download shows the full format. Product IDs are matched first, with a unique exact product-name match as a fallback. Ambiguous, duplicate, invalid, or conflicting rows are flagged and excluded from corrections.
+
+The preview shows the match trace and stock differences before any changes are made. Confirming applies only the unambiguous stock corrections, records each change in the activity log, and rejects a preview if inventory changed after it was created.
+
 ## Render Deployment
 
 Use these Render commands:
