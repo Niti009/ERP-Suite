@@ -415,6 +415,18 @@ class ExistingModuleIntegrationTests(TestCase):
             order=self.order, amount="998.00", payment_method="Bank transfer"
         )
 
+    def test_responsive_navigation_has_visible_menu_and_close_controls(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, 'id="mobile-nav-toggle"')
+        self.assertContains(response, "mobile-toggle-label")
+        self.assertContains(response, ">Menu</span>")
+        self.assertContains(response, 'aria-label="Close navigation"')
+        self.assertContains(response, "sidebar-close")
+        self.assertContains(response, "fa-xmark")
+
     def test_admin_order_payment_lists_and_global_search_use_existing_records(self):
         self.client.force_login(self.admin)
 
